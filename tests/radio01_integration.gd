@@ -93,7 +93,11 @@ func run() -> void:
 		await use(device)
 		check(bool(level.session.equipment[device]), "T10: existing " + device + " still operates with physical E")
 		if level.hud.panel.visible: level.hud.close_panel()
-	check(level.new_assets.register.drawer_open and level.fridge.opened, "T10: cash drawer and fridge animate")
+	check(not level.new_assets.register.drawer_open and not level.fridge.opened, "T10: inspections leave drawer and fridge closed")
+	await use("cash")
+	await use("fridge")
+	await frames(32)
+	check(level.new_assets.register.drawer_open and level.fridge.opened, "T10: checked cash drawer and fridge still operate")
 	check(level.validate_snapshot(level.capture_snapshot()), "T10: full career snapshot remains valid")
 	level.save_manager.autosave_enabled = false
 	level.music.stop_all()

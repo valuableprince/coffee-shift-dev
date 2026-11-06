@@ -64,9 +64,20 @@ func aim(point: Vector3, standing: Vector3) -> void:
 func use(action: String) -> void:
 	if level.hud.panel.visible: level.hud.close_panel()
 	var target: ShiftWorkstation = level.stations[action]
-	await aim(target.global_position, Vector3(0, .4, clampf(target.global_position.z, -2.10, 2.0)))
+	var standing := Vector3(0, .4, clampf(target.global_position.z, -2.10, 2.0))
+	if level.session.equipment.has(action) and not level.session.equipment[action]:
+		standing.x = .08 if target.global_position.x > 0 else -.08
+		if action == "fridge" and level.fridge.opened: standing = Vector3(-.12,.4,0)
+	await aim(target.global_position, standing)
 	check(level.player.get_interactable() == target, "raycast reaches " + action)
 	await key(KEY_E)
+	await wait_inspection()
+
+func wait_inspection() -> void:
+	for i in range(150):
+		if not level.inspection.busy: return
+		await physics_frame
+	check(false, "equipment animation finishes within 2.5 seconds")
 
 func shot(name: String) -> void:
 	if screenshots == "" or DisplayServer.get_name() == "headless": return

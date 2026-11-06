@@ -44,6 +44,7 @@ var fridge: ShiftFridge
 var grinder_visual: Node3D
 var machine_visual: EspressoMachineVisual
 var accessories: BaristaAccessories
+var inspection: EquipmentInspection
 var _orders_editing := false
 var _foot_distance := 0.0
 var _last_foot_position := Vector3.ZERO
@@ -91,6 +92,9 @@ func _ready() -> void:
 	hud.panel_closed.connect(_resume_controls)
 	hud.order_selected.connect(_select_order_item)
 	hud.order_called.connect(_call_order_from_sidebar)
+	inspection = EquipmentInspection.new()
+	add_child(inspection)
+	inspection.configure(self)
 	save_manager = ShiftSaveManager.new()
 	add_child(save_manager)
 	if _test:
@@ -283,7 +287,7 @@ func _build_stations() -> void:
 	trailer.add_child(preparation_visual)
 	fridge.door_changed.connect(func(_opened: bool) -> void:
 		_sync_fridge()
-		if save_manager != null: save_manager.mark_checkpoint("Дверца холодильника"))
+		if save_manager != null and (inspection == null or not inspection.busy): save_manager.mark_checkpoint("Дверца холодильника"))
 
 func _refresh() -> void:
 	if hud == null: return
@@ -365,6 +369,11 @@ func _refresh_held() -> void:
 
 func _input(event: InputEvent) -> void:
 	if not _ready_for_input or not is_instance_valid(main_menu) or not is_instance_valid(save_menu): return
+	if inspection.busy:
+		if event.is_action_pressed("ui_cancel"): inspection.cancel(); show_pause()
+		elif event.is_action_pressed("save_menu"): inspection.cancel(); open_saves()
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("ui_cancel"):
 		if main_menu.visible: main_menu.back()
 		elif save_menu.visible: _close_saves()
@@ -433,6 +442,12 @@ func _sync_customers(delta: float) -> void:
 			npc_visuals.erase(id)
 
 func station_available_action(station: ShiftWorkstation) -> String:
+	if inspection != null and inspection.busy: return "Осмотр…"
+	if station.action == "fridge" and fridge.moving: return "Открывается…" if fridge.opened else "Закрывается…"
+	if session.equipment.has(station.action) and not session.shift_open and not session.equipment[station.action]:
+		if accessories.inspected != "": return "Сначала верните предмет"
+		if not inspection.can_reach(station.action): return "Подойдите ближе"
+		return "[E] Осмотреть"
 	var next := session.preparation.next_step(session.catalog)
 	if station.action in ["filter", "dose", "pitcher"] and session.preparation.current.is_empty():
 		if accessories.inspected == station.action: return "[E] Вернуть"
@@ -441,7 +456,6 @@ func station_available_action(station: ShiftWorkstation) -> String:
 	match station.action:
 		"radio": return "[E] Выключить радио" if music.radio_on else "[E] Включить радио"
 		"fridge":
-			if fridge.moving: return "Открывается…" if fridge.opened else "Закрывается…"
 			return "[E] Закрыть" if fridge.opened else "[E] Открыть"
 		"window":
 			if session.window_open and session.shift_open: return "Сначала закройте смену"
@@ -484,7 +498,11 @@ func station_available_action(station: ShiftWorkstation) -> String:
 	return ""
 
 func interact_station(station: ShiftWorkstation) -> void:
+	if inspection.busy: return
 	var action := station.action
+	if session.equipment.has(action) and not session.shift_open and not session.equipment[action]:
+		if station_available_action(station).begins_with("[E]"): inspection.start(action)
+		return
 	var next := session.preparation.next_step(session.catalog)
 	if action in ["filter", "dose", "pitcher"] and session.preparation.current.is_empty():
 		accessories.take_or_return(action)
@@ -497,19 +515,15 @@ func interact_station(station: ShiftWorkstation) -> void:
 		"shift": show_shift()
 		"counter": show_customer()
 		"cash":
-			if not session.equipment.cash: session.prepare_equipment("cash")
 			if not session.cash.payment.is_empty(): show_cash()
 			else: new_assets.register.toggle_drawer()
 		"machine":
-			if not session.equipment.machine: session.prepare_equipment("machine")
-			elif next in ["install", "extract", "stop"]: session.prepare_action(next)
+			if next in ["install", "extract", "stop"]: session.prepare_action(next)
 			else: session.notify("Кофемашина готова. " + str(STEP_HINTS.get(next, "Выберите оплаченный заказ")))
 		"grinder":
-			if not session.equipment.grinder: session.prepare_equipment("grinder")
-			elif next == "grind": session.prepare_action("grind")
+			if next == "grind": session.prepare_action("grind")
 			else: session.notify("Кофемолка готова. Сначала возьмите кофе")
 		"fridge":
-			if not session.equipment.fridge: session.prepare_equipment("fridge")
 			fridge.toggle()
 			session.notify("Холодильник открыт. Молоко на нижней полке" if fridge.opened else "Холодильник закрыт")
 		"milk":
@@ -534,6 +548,7 @@ func interact_station(station: ShiftWorkstation) -> void:
 		"menu": show_menu_board()
 
 func _panel(title: String, body: String, actions: Array = [], is_dialogue: bool = false) -> void:
+	inspection.cancel()
 	_set_orders_editing(false)
 	hud.show_panel(title, body, actions, is_dialogue)
 	player.controls_enabled = false
@@ -544,7 +559,7 @@ func _resume_controls() -> void:
 	if _cash_panel_opened:
 		new_assets.register.close_drawer()
 		_cash_panel_opened = false
-	if _active and not main_menu.visible and not save_menu.visible:
+	if _active and not main_menu.visible and not save_menu.visible and not inspection.busy:
 		player.controls_enabled = true
 		player.set_mouse_capture(true)
 	_sync_process_audio()
@@ -696,7 +711,7 @@ func show_help() -> void:
 func capture_snapshot() -> Dictionary:
 	return {"trade": session.snapshot(), "world": {"position": [player.position.x, player.position.y, player.position.z],
 		"yaw": player.rotation.y, "pitch": player.pitch,
-		"fridge_opened": fridge.opened, "staff_door_opened": trailer.get_node("StaffDoor").opened,
+		"fridge_opened": inspection.saved_fridge_opened(), "staff_door_opened": trailer.get_node("StaffDoor").opened,
 		"assets": new_assets.snapshot(), "audio": music.snapshot_audio()}}
 
 func validate_snapshot(data: Dictionary) -> bool:
@@ -713,6 +728,7 @@ func validate_snapshot(data: Dictionary) -> bool:
 
 func apply_snapshot(data: Dictionary) -> bool:
 	if not validate_snapshot(data): return false
+	inspection.cancel()
 	if not session.restore(data.trade): return false
 	music.restore_audio(data.world.get("audio", {}))
 	# Cancel any in-flight animation and restore the authoritative saved window immediately.
@@ -735,6 +751,7 @@ func apply_snapshot(data: Dictionary) -> bool:
 		npc_visuals[id].free()
 	npc_visuals.clear()
 	_sync_customers(0)
+	hud.tasks.sync(session, true)
 	_refresh()
 	return true
 
@@ -792,6 +809,7 @@ func switch_career(career_id: int) -> void:
 		save_manager.feedback.emit("Не удалось переключить карьеру. Текущий прогресс сохранён.")
 
 func show_title() -> void:
+	inspection.cancel()
 	_active = false
 	_saves_from_pause = false
 	_orders_editing = false
@@ -805,6 +823,7 @@ func show_title() -> void:
 	_sync_process_audio()
 
 func show_pause() -> void:
+	inspection.cancel()
 	_orders_editing = false
 	hud.set_orders_editing(false)
 	hud.hide()
@@ -828,6 +847,7 @@ func resume_game() -> void:
 	_resume_controls()
 
 func open_saves() -> void:
+	inspection.cancel()
 	_orders_editing = false
 	hud.set_orders_editing(false)
 	hud.panel.hide()
@@ -865,6 +885,7 @@ func return_to_title() -> void:
 	show_title()
 
 func quit_game() -> void:
+	inspection.cancel()
 	if _active and save_manager.save_auto("Выход") != OK:
 		main_menu.show_error("Не удалось сохранить прогресс; выход отменён")
 		return
@@ -875,3 +896,6 @@ func quit_game() -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST and _ready_for_input: quit_game()
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and _ready_for_input and inspection.busy:
+		inspection.cancel()
+		show_pause()

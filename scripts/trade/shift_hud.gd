@@ -9,6 +9,7 @@ var hint: Label
 var reticle: InteractionReticle
 var message: Label
 var guide: Label
+var tasks: EquipmentTaskList
 var panel: PanelContainer
 var panel_content: VBoxContainer
 var root: Control
@@ -119,15 +120,7 @@ func _build_orders_panel() -> void:
 	orders_panel.offset_right = -12
 	orders_panel.offset_top = 104
 	orders_panel.offset_bottom = 310
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(.055,.13,.12,.91)
-	style.border_color = Color("8a997b")
-	style.set_border_width_all(1)
-	style.content_margin_left = 8
-	style.content_margin_right = 8
-	style.content_margin_top = 7
-	style.content_margin_bottom = 7
-	orders_panel.add_theme_stylebox_override("panel", style)
+	orders_panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	orders_panel.add_child(scroll)
@@ -140,6 +133,8 @@ func _build_orders_panel() -> void:
 	orders_hint.text = "ЗАКАЗЫ   ·   [Tab] выбрать"
 	orders_hint.add_theme_font_size_override("font_size", 14)
 	column.add_child(orders_hint)
+	tasks = EquipmentTaskList.new()
+	column.add_child(tasks)
 	guide.reparent(column)
 	guide.position = Vector2.ZERO
 	guide.custom_minimum_size = Vector2(238,0)
@@ -446,6 +441,8 @@ func _advance_dialogue(delta: float) -> void:
 
 func refresh(session: CoffeeShiftSession) -> void:
 	_refresh_orders(session)
+	tasks.sync(session)
+	orders_hint.visible = session.shift_open or not session.active_orders().is_empty()
 	var minutes := int(session.clock) / 60
 	business.text = session.business_name.to_upper()
 	status.text = "ДЕНЬ %d   ·   %02d:%02d   ·   %s\nКасса: %d ₽   ·   Заказы: %d / 3" % [
@@ -467,7 +464,7 @@ func refresh(session: CoffeeShiftSession) -> void:
 	elif session.shift_open:
 		guide.text = "[E] — покупатель у окна\n[Tab] — выбрать напиток или вызвать номер\n[N] — справочник бариста"
 	else:
-		guide.text = "ПОДГОТОВКА\nПроверьте: кофемашину, кофемолку, холодильник и кассу.\nОткройте створку за ручку.\nПереключатель смены — на стене справа от окна."
+		guide.text = "Откройте створку за ручку.\nСмена — переключатель справа от окна." if not session.window_open else "Смена — переключатель справа от окна."
 	guide.visible = not guide.text.is_empty()
 
 func _process(delta: float) -> void:
