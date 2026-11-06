@@ -9,3 +9,7 @@
 - Third-party assets: Kenney Impact Sounds 1.0 CC0 footstep clips and renamed DejaVu fonts with retained license notices. Original game-specific GLB assets are described by source maintainers as authored for this project.
 - Security: `docs/` audit records, large GDD, private workflows and any credentials are intentionally outside this public copy. High-confidence secret patterns were scanned across migrated text source files.
 - Pending validation: GitHub Actions CI completion, Linux headless import/tests, native Windows checks, and a later optional restoration of the absent footstep file after approved transfer.
+
+## Audio integration branch
+
+AUDIO-01 is layered on top of public bootstrap in `feat/audio01-music-integration`, sourced from private draft PR #84. Recorded tracks are copied without resynthesis, except that radio #08 is replaced by CC0 'Buy Something!' / Bossa Nova with documented provenance. Details: `docs/AUDIO01_REPORT.md` and `docs/AUDIO01_LICENSES.md`. The branch must not be treated as commercial-release-ready while the remaining provenance and MUSIC-25 checks are open.

@@ -1,0 +1,41 @@
+name: AUDIO-01 — music system
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main, feat/public-bootstrap-20261106]
+  push:
+    branches: [feat/audio01-music-integration]
+
+permissions:
+  contents: read
+
+jobs:
+  audio01-smoke:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 18
+    env:
+      GODOT_SILENCE_ROOT_WARNING: '1'
+      GODOT_BIN: /tmp/godot/Godot_v4.3-stable_linux.x86_64
+      AUDIO01_LOG_DIR: /tmp/audio01-logs
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate audio bytes independently of Godot
+        run: python3 tools/ci/check_audio_assets.py
+      - name: Install official Godot 4.3
+        run: |
+          set -euo pipefail
+          curl --retry 3 --retry-delay 2 -L --fail -o /tmp/godot.zip https://github.com/godotengine/godot-builds/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip
+          echo '7de56444b130b10af84d19c7e0cf63cf9e9937ee4ba94364c3b7dd114253ca21  /tmp/godot.zip' | sha256sum -c -
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          chmod +x /tmp/godot/Godot_v4.3-stable_linux.x86_64
+      - name: Run reproducible Godot 4.3 checks
+        run: bash tools/ci/audio01_local.sh
+      - name: Upload diagnostic output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audio01-godot-logs
+          path: /tmp/audio01-logs/
+          if-no-files-found: ignore
+          retention-days: 14

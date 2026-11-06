@@ -5,7 +5,7 @@ extends Node3D
 @onready var trailer: CoffeeTrailer = $CoffeeTrailer
 @onready var state: RestorationState = $RestorationState
 @onready var hud: GarageHUD = $GarageHUD
-@onready var music: PrototypeMusic = $PrototypeMusic
+@onready var music: Audio01Director = $PrototypeMusic
 var parts: Array[InspectablePart] = []
 var pickups: Array[WorkshopPickup] = []
 var inspection_enabled := false
@@ -365,6 +365,7 @@ func _show_title() -> void:
 		hands.hide()
 	save_manager.autosave_enabled = false
 	main_menu.show_title()
+	music.set_context("menu")
 
 func _show_pause() -> void:
 	if not _game_active:
@@ -390,6 +391,7 @@ func _resume_game() -> void:
 	if is_instance_valid(hands):
 		hands.show()
 	_game_active = true
+	music.set_context("garage")
 	save_manager.autosave_enabled = not _test_mode
 
 func _continue_from_menu(career_id: int) -> void:
