@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1500" viewBox="0 0 900 1500">
+  <title>Северный кофе — классическая смесь, зерновой кофе 1 кг</title>
+  <desc>Original, fictional period-inspired coffee packaging artwork for Coffee Shift.</desc>
+  <defs>
+    <linearGradient id="foil" x2="1" y2="0">
+      <stop stop-color="#53131b"/>
+      <stop offset=".22" stop-color="#8c2430"/>
+      <stop offset=".53" stop-color="#6d1824"/>
+      <stop offset=".78" stop-color="#a02b35"/>
+      <stop offset="1" stop-color="#59171d"/>
+    </linearGradient>
+    <linearGradient id="paper" x2="0" y2="1">
+      <stop stop-color="#f4deb8"/>
+      <stop offset="1" stop-color="#c2a477"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="1500" fill="url(#foil)"/>
+  <path d="M88 0V1500M812 0V1500" stroke="#c79c59" stroke-width="17" opacity=".8"/>
+  <path d="M0 73H900M0 90H900M0 107H900" stroke="#4a121b" stroke-width="7" opacity=".65"/>
+  <path d="M160 352Q450 245 740 352L793 1065Q450 1120 107 1065Z" fill="url(#paper)" stroke="#ba8b4c" stroke-width="16"/>
+  <path d="M160 352Q450 245 740 352" fill="none" stroke="#fff0cd" stroke-width="8"/>
+  <circle cx="450" cy="307" r="81" fill="#81232b" stroke="#d5aa65" stroke-width="9"/>
+  <path d="M414 298h67v42q-28 21-67 0zM481 302q38-15 29 21-8 20-30 12M431 288q-17-21 3-38M460 282q-18-24 3-44" fill="none" stroke="#e8c17a" stroke-width="9" stroke-linecap="round"/>
+  <path d="M166 421H738" stroke="#bd955f" stroke-width="5" opacity=".65"/>
+  <path d="M190 786H710" stroke="#865d44" stroke-width="5"/>
+  <!-- Stylized Neva embankment: original schematic, not a photograph. -->
+  <path d="M150 922Q450 897 750 922M155 951Q450 928 746 951" fill="none" stroke="#7a635a" stroke-width="8"/>
+  <path d="M180 917L270 890 285 830 305 830 321 889 363 917M385 917V848L414 848V810H446V765L461 735 476 765V810H507V848H535V917M557 917V858H601V832H635V858H669V917" fill="none" stroke="#6f6058" stroke-width="13" stroke-linecap="round"/>
+  <path d="M137 984Q450 1027 763 984" fill="none" stroke="#6e5653" stroke-width="8"/>
+  <path d="M45 1074Q450 1010 855 1074L815 1176Q450 1133 85 1176Z" fill="#6f1b28" stroke="#d0a164" stroke-width="14"/>
+  <rect x="142" y="1207" width="616" height="200" rx="8" fill="#382827" opacity=".96"/>
+  <ellipse cx="318" cy="1285" rx="48" ry="70" transform="rotate(-28 318 1285)" fill="#6f422d" stroke="#a77342" stroke-width="9"/>
+  <path d="M302 1227Q350 1273 332 1347" fill="none" stroke="#31201d" stroke-width="10"/>
+  <ellipse cx="443" cy="1274" rx="50" ry="66" transform="rotate(18 443 1274)" fill="#78462a" stroke="#b0804b" stroke-width="9"/>
+  <path d="M455 1218Q409 1273 443 1332" fill="none" stroke="#31201d" stroke-width="10"/>
+  <ellipse cx="568" cy="1290" rx="50" ry="66" transform="rotate(-18 568 1290)" fill="#6a3c29" stroke="#a87745" stroke-width="9"/>
+  <path d="M544 1234Q587 1297 574 1347" fill="none" stroke="#31201d" stroke-width="10"/>
+  <path d="M177 1433H724" stroke="#d4aa72" stroke-width="7"/>
+  <!-- SVG text is useful in the design source; Godot labels are rendered as Label3D. -->
+  <g font-family="Georgia,serif" font-weight="bold" text-anchor="middle" fill="#35251c">
+    <text x="450" y="565" font-size="91">Северный</text>
+    <text x="450" y="669" font-size="119">кофе</text>
+  </g>
+  <text x="450" y="1137" text-anchor="middle" font-size="40" fill="#edd4a3" font-family="serif">КЛАССИЧЕСКАЯ СМЕСЬ</text>
+</svg>

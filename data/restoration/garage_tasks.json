@@ -1,0 +1,776 @@
+{
+  "parts": [
+    {
+      "id": "body_service",
+      "title": "Очистить корпус со стороны выдачи",
+      "category": "exterior",
+      "position": [
+        1.213,
+        0.84,
+        0.1
+      ],
+      "size": [
+        0.012,
+        0.49,
+        1.3
+      ],
+      "kind": "clean",
+      "dependencies": [],
+      "finding": "Следы простоя. Нужна аккуратная очистка и подготовка.",
+      "phases": [
+        {
+          "label": "очистить корпус со стороны выдачи",
+          "tool": "brush",
+          "seconds": 2.5
+        }
+      ]
+    },
+    {
+      "id": "body_left_front",
+      "title": "Очистить левый борт у дышла",
+      "category": "exterior",
+      "position": [
+        -1.213,
+        1.18,
+        -1.2
+      ],
+      "size": [
+        0.012,
+        1.05,
+        1.15
+      ],
+      "kind": "clean",
+      "dependencies": [],
+      "finding": "Следы простоя. Нужна аккуратная очистка и подготовка.",
+      "phases": [
+        {
+          "label": "очистить левый борт у дышла",
+          "tool": "brush",
+          "seconds": 2.5
+        }
+      ]
+    },
+    {
+      "id": "body_left_rear",
+      "title": "Очистить левый борт у двери",
+      "category": "exterior",
+      "position": [
+        -1.213,
+        1.18,
+        1.2
+      ],
+      "size": [
+        0.012,
+        1.05,
+        1.15
+      ],
+      "kind": "clean",
+      "dependencies": [],
+      "finding": "Следы простоя. Нужна аккуратная очистка и подготовка.",
+      "phases": [
+        {
+          "label": "очистить левый борт у двери",
+          "tool": "brush",
+          "seconds": 2.5
+        }
+      ]
+    },
+    {
+      "id": "floor_front",
+      "title": "Вымыть переднюю часть пола",
+      "category": "interior",
+      "position": [
+        0,
+        0.412,
+        -1.25
+      ],
+      "size": [
+        0.72,
+        0.008,
+        1.15
+      ],
+      "kind": "clean",
+      "dependencies": [],
+      "finding": "Следы простоя. Нужна аккуратная очистка и подготовка.",
+      "phases": [
+        {
+          "label": "вымыть переднюю часть пола",
+          "tool": "brush",
+          "seconds": 2.5
+        }
+      ]
+    },
+    {
+      "id": "floor_rear",
+      "title": "Вымыть пол у входа",
+      "category": "interior",
+      "position": [
+        0,
+        0.412,
+        1.25
+      ],
+      "size": [
+        0.72,
+        0.008,
+        1.1
+      ],
+      "kind": "clean",
+      "dependencies": [],
+      "finding": "Следы простоя. Нужна аккуратная очистка и подготовка.",
+      "phases": [
+        {
+          "label": "вымыть пол у входа",
+          "tool": "brush",
+          "seconds": 2.5
+        }
+      ]
+    },
+    {
+      "id": "wall_left",
+      "title": "Очистить внутреннюю стену",
+      "category": "interior",
+      "position": [
+        -1.132,
+        1.75,
+        -0.9
+      ],
+      "size": [
+        0.008,
+        0.58,
+        1.5
+      ],
+      "kind": "clean",
+      "dependencies": [],
+      "finding": "Следы простоя. Нужна аккуратная очистка и подготовка.",
+      "phases": [
+        {
+          "label": "очистить внутреннюю стену",
+          "tool": "cleaning_kit",
+          "seconds": 2.5
+        }
+      ]
+    },
+    {
+      "id": "wall_front",
+      "title": "Очистить переднюю стену",
+      "category": "interior",
+      "position": [
+        0,
+        1.52,
+        -2.68
+      ],
+      "size": [
+        0.7,
+        1.0,
+        0.008
+      ],
+      "kind": "clean",
+      "dependencies": [],
+      "finding": "Следы простоя. Нужна аккуратная очистка и подготовка.",
+      "phases": [
+        {
+          "label": "очистить переднюю стену",
+          "tool": "cleaning_kit",
+          "seconds": 2.5
+        }
+      ]
+    },
+    {
+      "id": "counter_coffee",
+      "title": "Вымыть столешницу кофейной зоны",
+      "category": "interior",
+      "position": [
+        0.8,
+        1.305,
+        -1.38
+      ],
+      "size": [
+        0.55,
+        0.006,
+        0.9
+      ],
+      "kind": "clean",
+      "dependencies": [],
+      "finding": "Следы простоя. Нужна аккуратная очистка и подготовка.",
+      "phases": [
+        {
+          "label": "вымыть столешницу кофейной зоны",
+          "tool": "cleaning_kit",
+          "seconds": 2.5
+        }
+      ]
+    },
+    {
+      "id": "counter_cash",
+      "title": "Вымыть столешницу кассы",
+      "category": "interior",
+      "position": [
+        0.8,
+        1.305,
+        1.4
+      ],
+      "size": [
+        0.55,
+        0.006,
+        0.85
+      ],
+      "kind": "clean",
+      "dependencies": [],
+      "finding": "Следы простоя. Нужна аккуратная очистка и подготовка.",
+      "phases": [
+        {
+          "label": "вымыть столешницу кассы",
+          "tool": "cleaning_kit",
+          "seconds": 2.5
+        }
+      ]
+    },
+    {
+      "id": "counter_wash",
+      "title": "Вымыть поверхность у мойки",
+      "category": "interior",
+      "position": [
+        -0.8,
+        1.305,
+        1.35
+      ],
+      "size": [
+        0.54,
+        0.006,
+        0.8
+      ],
+      "kind": "clean",
+      "dependencies": [],
+      "finding": "Следы простоя. Нужна аккуратная очистка и подготовка.",
+      "phases": [
+        {
+          "label": "вымыть поверхность у мойки",
+          "tool": "cleaning_kit",
+          "seconds": 2.5
+        }
+      ]
+    },
+    {
+      "id": "prepare_coffee",
+      "title": "Подготовить рабочую поверхность для кофе",
+      "category": "preparation",
+      "position": [
+        0.48,
+        1.24,
+        -1.4
+      ],
+      "size": [
+        0.014,
+        0.075,
+        0.85
+      ],
+      "kind": "prepare",
+      "dependencies": [
+        "counter_coffee"
+      ],
+      "finding": "Засохший клей и заусенцы на передней кромке. После уборки снять налёт шпателем.",
+      "phases": [
+        {
+          "label": "подготовить рабочую поверхность для кофе",
+          "tool": "scraper",
+          "seconds": 2.5
+        }
+      ]
+    },
+    {
+      "id": "prepare_cash",
+      "title": "Подготовить кассовую поверхность",
+      "category": "preparation",
+      "position": [
+        0.48,
+        1.24,
+        1.4
+      ],
+      "size": [
+        0.014,
+        0.075,
+        0.8
+      ],
+      "kind": "prepare",
+      "dependencies": [
+        "counter_cash"
+      ],
+      "finding": "Остатки старой ленты на кромке. Очистить и выровнять поверхность перед монтажом кассы.",
+      "phases": [
+        {
+          "label": "подготовить кассовую поверхность",
+          "tool": "scraper",
+          "seconds": 2.5
+        }
+      ]
+    },
+    {
+      "id": "seal_window",
+      "title": "Заменить уплотнение окна",
+      "category": "seals",
+      "position": [
+        1.243,
+        1.24,
+        -0.48
+      ],
+      "size": [
+        0.018,
+        0.036,
+        0.4
+      ],
+      "kind": "seal",
+      "dependencies": [],
+      "finding": "Резина затвердела и растрескалась. Снять, заменить и проверить прилегание.",
+      "phases": [
+        {
+          "label": "снять старый уплотнитель",
+          "tool": "scraper",
+          "seconds": 2
+        },
+        {
+          "label": "вкатать новый уплотнитель",
+          "tool": "roller",
+          "seconds": 2.5,
+          "material": "seal_strip",
+          "material_title": "лента уплотнителя"
+        },
+        {
+          "label": "проверить прилегание",
+          "tool": "",
+          "seconds": 1.5
+        }
+      ],
+      "materials": "Шпатель, ролик; лента уплотнителя — на левой полке"
+    },
+    {
+      "id": "seal_door",
+      "title": "Заменить нижнее уплотнение двери",
+      "category": "seals",
+      "position": [
+        0,
+        0.448,
+        2.76
+      ],
+      "size": [
+        0.78,
+        0.037,
+        0.02
+      ],
+      "kind": "seal",
+      "dependencies": [],
+      "finding": "Резина затвердела и растрескалась. Снять, заменить и проверить прилегание.",
+      "phases": [
+        {
+          "label": "снять старый уплотнитель",
+          "tool": "scraper",
+          "seconds": 2
+        },
+        {
+          "label": "вкатать новый уплотнитель",
+          "tool": "roller",
+          "seconds": 2.5,
+          "material": "seal_strip",
+          "material_title": "лента уплотнителя"
+        },
+        {
+          "label": "проверить прилегание",
+          "tool": "",
+          "seconds": 1.5
+        }
+      ],
+      "materials": "Шпатель, ролик; лента уплотнителя — на левой полке"
+    },
+    {
+      "id": "loose_bracket",
+      "title": "Подтянуть крепление рабочей линии",
+      "category": "repair",
+      "position": [
+        -0.48,
+        1.03,
+        0.65
+      ],
+      "size": [
+        0.025,
+        0.16,
+        0.16
+      ],
+      "kind": "repair",
+      "dependencies": [],
+      "finding": "Ослаблен винт кронштейна. Каркас исправен; достаточно подтяжки.",
+      "phases": [
+        {
+          "label": "подтянуть крепление рабочей линии",
+          "tool": "screwdriver",
+          "seconds": 2.5
+        }
+      ]
+    },
+    {
+      "id": "door_hinge",
+      "title": "Подтянуть петлю двери",
+      "category": "repair",
+      "position": [
+        -0.49,
+        1.25,
+        2.8
+      ],
+      "size": [
+        0.1,
+        0.2,
+        0.05
+      ],
+      "kind": "repair",
+      "dependencies": [],
+      "finding": "Небольшой люфт петли. Дверь открывается; подтянуть крепление ключом.",
+      "phases": [
+        {
+          "label": "подтянуть петлю двери",
+          "tool": "wrench",
+          "seconds": 2.5
+        }
+      ]
+    },
+    {
+      "id": "small_latch",
+      "title": "Заменить изношенную защёлку тумбы",
+      "category": "repair",
+      "position": [
+        0.48,
+        0.9,
+        1.55
+      ],
+      "size": [
+        0.028,
+        0.12,
+        0.18
+      ],
+      "kind": "repair",
+      "dependencies": [],
+      "finding": "Небольшая защёлка тумбы изношена. Заменить готовой деталью из гаража.",
+      "phases": [
+        {
+          "label": "снять старую защёлку",
+          "tool": "screwdriver",
+          "seconds": 1.8
+        },
+        {
+          "label": "установить новую защёлку",
+          "tool": "screwdriver",
+          "seconds": 1.8,
+          "material": "latch_kit",
+          "material_title": "новая защёлка"
+        }
+      ],
+      "materials": "Отвёртка; защёлка — на левой полке"
+    },
+    {
+      "id": "sound_frame",
+      "title": "Проверить исправный каркас",
+      "category": "repair",
+      "position": [
+        0,
+        0.66,
+        -2.76
+      ],
+      "size": [
+        0.5,
+        0.12,
+        0.035
+      ],
+      "kind": "healthy",
+      "dependencies": [],
+      "finding": "Каркас и передняя поперечина исправны. Капитальный ремонт не требуется.",
+      "phases": [
+        {
+          "label": "проверить исправный каркас",
+          "tool": "brush",
+          "seconds": 2.5
+        }
+      ],
+      "healthy": true,
+      "mandatory": false
+    },
+    {
+      "id": "equipment_machine",
+      "title": "Установить и проверить: Кофемашина",
+      "category": "equipment",
+      "position": [
+        0.84,
+        1.51,
+        -1.52
+      ],
+      "size": [
+        0.47,
+        0.42,
+        0.5
+      ],
+      "kind": "equipment",
+      "dependencies": [
+        "prepare_coffee"
+      ],
+      "finding": "Место подготовлено под кофемашина. Комплект находится на левой полке гаража. Нужны установка и две проверки.",
+      "phases": [
+        {
+          "label": "установить: Кофемашина",
+          "tool": "screwdriver",
+          "seconds": 2.5,
+          "material": "equipment_machine",
+          "material_title": "комплект «Кофемашина»"
+        },
+        {
+          "label": "проверить крепление и подключение",
+          "tool": "",
+          "seconds": 1.8
+        },
+        {
+          "label": "выполнить пробный пуск без напитка",
+          "tool": "",
+          "seconds": 1.8
+        }
+      ],
+      "device": "machine",
+      "materials": "Подготовить комплект на левой полке; отвёртка для крепления"
+    },
+    {
+      "id": "equipment_grinder",
+      "title": "Установить и проверить: Кофемолка",
+      "category": "equipment",
+      "position": [
+        0.83,
+        1.48,
+        -1.0
+      ],
+      "size": [
+        0.24,
+        0.36,
+        0.24
+      ],
+      "kind": "equipment",
+      "dependencies": [
+        "prepare_coffee"
+      ],
+      "finding": "Место подготовлено под кофемолка. Комплект находится на левой полке гаража. Нужны установка и две проверки.",
+      "phases": [
+        {
+          "label": "установить: Кофемолка",
+          "tool": "screwdriver",
+          "seconds": 2.5,
+          "material": "equipment_grinder",
+          "material_title": "комплект «Кофемолка»"
+        },
+        {
+          "label": "проверить фиксацию бункера",
+          "tool": "",
+          "seconds": 1.8
+        },
+        {
+          "label": "проверить холостой пуск",
+          "tool": "",
+          "seconds": 1.8
+        }
+      ],
+      "device": "grinder",
+      "materials": "Подготовить комплект на левой полке; отвёртка для крепления"
+    },
+    {
+      "id": "equipment_fridge",
+      "title": "Установить и проверить: Холодильник",
+      "category": "equipment",
+      "position": [
+        -0.78,
+        0.82,
+        -0.12
+      ],
+      "size": [
+        0.55,
+        0.72,
+        0.62
+      ],
+      "kind": "equipment",
+      "dependencies": [],
+      "finding": "Место подготовлено под холодильник. Комплект находится на левой полке гаража. Нужны установка и две проверки.",
+      "phases": [
+        {
+          "label": "установить: Холодильник",
+          "tool": "wrench",
+          "seconds": 2.5,
+          "material": "equipment_fridge",
+          "material_title": "комплект «Холодильник»"
+        },
+        {
+          "label": "проверить устойчивость и уплотнение",
+          "tool": "",
+          "seconds": 1.8
+        },
+        {
+          "label": "проверить охлаждение по индикатору",
+          "tool": "",
+          "seconds": 1.8
+        }
+      ],
+      "device": "fridge",
+      "materials": "Подготовить комплект на левой полке; ключ для крепления"
+    },
+    {
+      "id": "equipment_sink",
+      "title": "Установить и проверить: Мойка",
+      "category": "equipment",
+      "position": [
+        -0.86,
+        1.32,
+        1.35
+      ],
+      "size": [
+        0.42,
+        0.03,
+        0.48
+      ],
+      "kind": "equipment",
+      "dependencies": [
+        "counter_wash"
+      ],
+      "finding": "Место подготовлено под мойка. Комплект находится на левой полке гаража. Нужны установка и две проверки.",
+      "phases": [
+        {
+          "label": "установить: Мойка",
+          "tool": "wrench",
+          "seconds": 2.5,
+          "material": "equipment_sink",
+          "material_title": "комплект «Мойка»"
+        },
+        {
+          "label": "проверить крепление и шланги",
+          "tool": "",
+          "seconds": 1.8
+        },
+        {
+          "label": "проверить пролив и отсутствие течи",
+          "tool": "",
+          "seconds": 1.8
+        }
+      ],
+      "device": "sink",
+      "materials": "Подготовить комплект на левой полке; ключ для крепления"
+    },
+    {
+      "id": "equipment_cash",
+      "title": "Установить и проверить: Кассовое место",
+      "category": "equipment",
+      "position": [
+        0.83,
+        1.42,
+        1.38
+      ],
+      "size": [
+        0.45,
+        0.24,
+        0.45
+      ],
+      "kind": "equipment",
+      "dependencies": [
+        "prepare_cash"
+      ],
+      "finding": "Место подготовлено под кассовое место. Комплект находится на левой полке гаража. Нужны установка и две проверки.",
+      "phases": [
+        {
+          "label": "установить: Кассовое место",
+          "tool": "screwdriver",
+          "seconds": 2.5,
+          "material": "equipment_cash",
+          "material_title": "комплект «Кассовое место»"
+        },
+        {
+          "label": "проверить ящик и лоток для сдачи",
+          "tool": "",
+          "seconds": 1.8
+        },
+        {
+          "label": "проверить включение без расчёта",
+          "tool": "",
+          "seconds": 1.8
+        }
+      ],
+      "device": "cash",
+      "materials": "Подготовить комплект на левой полке; отвёртка для крепления"
+    }
+  ],
+  "sources": [
+    {
+      "id": "seal_supply",
+      "material": "seal_strip",
+      "amount": 2,
+      "title": "Лента уплотнителя ×2",
+      "position": [
+        -4.1,
+        1.1,
+        -3.2
+      ]
+    },
+    {
+      "id": "latch_supply",
+      "material": "latch_kit",
+      "amount": 1,
+      "title": "Новая защёлка",
+      "position": [
+        -4.1,
+        1.1,
+        -3.8
+      ]
+    },
+    {
+      "id": "package_machine",
+      "material": "equipment_machine",
+      "amount": 1,
+      "title": "Комплект: Кофемашина",
+      "position": [
+        -4.05,
+        1.1,
+        1.95
+      ]
+    },
+    {
+      "id": "package_grinder",
+      "material": "equipment_grinder",
+      "amount": 1,
+      "title": "Комплект: Кофемолка",
+      "position": [
+        -4.05,
+        1.1,
+        2.32
+      ]
+    },
+    {
+      "id": "package_fridge",
+      "material": "equipment_fridge",
+      "amount": 1,
+      "title": "Комплект: Холодильник",
+      "position": [
+        -4.05,
+        1.1,
+        2.69
+      ]
+    },
+    {
+      "id": "package_sink",
+      "material": "equipment_sink",
+      "amount": 1,
+      "title": "Комплект: Мойка",
+      "position": [
+        -4.05,
+        1.1,
+        3.0599999999999996
+      ]
+    },
+    {
+      "id": "package_cash",
+      "material": "equipment_cash",
+      "amount": 1,
+      "title": "Комплект: Кассовое место",
+      "position": [
+        -4.05,
+        1.1,
+        3.4299999999999997
+      ]
+    }
+  ]
+}

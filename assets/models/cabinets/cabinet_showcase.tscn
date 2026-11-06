@@ -1,0 +1,53 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/models/cabinets/base_cabinet.tscn" id="1_base"]
+[ext_resource type="PackedScene" path="res://assets/models/cabinets/wall_cabinet.tscn" id="2_wall"]
+[ext_resource type="Script" path="res://assets/models/cabinets/cabinet_showcase.gd" id="3_script"]
+
+[sub_resource type="BoxMesh" id="FloorMesh"]
+size = Vector3(3.8, 0.07, 1.5)
+
+[sub_resource type="StandardMaterial3D" id="FloorMaterial"]
+albedo_color = Color(0.43, 0.40, 0.35, 1)
+roughness = 0.92
+
+[sub_resource type="Environment" id="PreviewEnvironment"]
+background_mode = 1
+background_color = Color(0.26, 0.29, 0.30, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.9, 0.86, 0.75, 1)
+ambient_light_energy = 0.65
+
+[node name="CabinetShowcase" type="Node3D"]
+script = ExtResource("3_script")
+
+[node name="Environment" type="WorldEnvironment" parent="."]
+environment = SubResource("PreviewEnvironment")
+
+[node name="Floor" type="MeshInstance3D" parent="."]
+mesh = SubResource("FloorMesh")
+material_override = SubResource("FloorMaterial")
+position = Vector3(0, -0.07, 0)
+
+[node name="BaseCabinet" parent="." instance=ExtResource("1_base")]
+position = Vector3(-0.75, 0, 0)
+
+[node name="WallCabinet" parent="." instance=ExtResource("2_wall")]
+position = Vector3(0.86, 1.07, -0.18)
+
+[node name="Camera" type="Camera3D" parent="."]
+position = Vector3(0, 1.08, 3.6)
+rotation = Vector3(-0.055, 0, 0)
+fov = 56
+current = true
+
+[node name="WarmLight" type="DirectionalLight3D" parent="."]
+rotation = Vector3(-0.7, 0.65, 0.25)
+light_color = Color(1, 0.92, 0.81, 1)
+light_energy = 1.55
+
+[node name="FillLight" type="OmniLight3D" parent="."]
+position = Vector3(1.6, 1.9, 2)
+light_color = Color(0.86, 0.93, 1, 1)
+light_energy = 0.55
+omni_range = 5

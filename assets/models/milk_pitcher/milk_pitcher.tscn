@@ -1,0 +1,22 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/models/milk_pitcher/coffee_shift_milk_pitcher.glb" id="1_model"]
+
+[node name="MilkPitcher" type="Node3D"]
+
+[node name="Model" parent="." instance=ExtResource("1_model")]
+
+[node name="HandGrip" type="Marker3D" parent="."]
+position = Vector3(0, 0.078, -0.107)
+
+[node name="PourSpout" type="Marker3D" parent="."]
+position = Vector3(0, 0.1247, 0.066)
+
+[node name="MilkSurfaceOrigin" type="Marker3D" parent="."]
+position = Vector3(0, 0.0062, 0)
+
+[node name="SteamWandTarget" type="Marker3D" parent="."]
+position = Vector3(0, 0.076, 0)
+
+[node name="BaseContact" type="Marker3D" parent="."]
+position = Vector3(0, 0.0010, 0)

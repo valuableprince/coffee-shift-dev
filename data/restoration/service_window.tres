@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="RestorationTask" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/systems/restoration_task.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+title = "Очистить загрязнённое окно трейлера"
+finding = "На стекле пыль и засохшие потёки. Стекло целое; достаточно очистки."
+required_tool = &"cleaning_kit"
+materials = "Ветошь и средство для стёкол — на верстаке"
+prototype_work_seconds = 3.0

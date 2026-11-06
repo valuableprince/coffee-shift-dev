@@ -1,0 +1,16 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/models/tamper/coffee_shift_tamper.glb" id="1_model"]
+
+[node name="CoffeeTamper" type="Node3D"]
+
+[node name="Model" parent="." instance=ExtResource("1_model")]
+
+[node name="HandGrip" type="Marker3D" parent="."]
+position = Vector3(0, 0.084, 0)
+
+[node name="PressContact" type="Marker3D" parent="."]
+position = Vector3(0, 0, 0)
+
+[node name="StandPivot" type="Marker3D" parent="."]
+position = Vector3(0, 0.009, 0)

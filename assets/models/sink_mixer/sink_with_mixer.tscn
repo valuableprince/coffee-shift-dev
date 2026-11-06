@@ -1,0 +1,88 @@
+[gd_scene load_steps=11 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/models/sink_mixer/stainless_sink_basin.glb" id="1_basin"]
+
+[ext_resource type="PackedScene" path="res://assets/models/sink_mixer/gooseneck_mixer_body.glb" id="2_faucet"]
+
+[ext_resource type="PackedScene" path="res://assets/models/sink_mixer/mixer_lever.glb" id="3_lever"]
+
+[ext_resource type="PackedScene" path="res://assets/models/sink_mixer/drain_strainer.glb" id="4_drain"]
+
+[ext_resource type="Script" path="res://assets/models/sink_mixer/sink_mixer.gd" id="5_script"]
+
+[ext_resource type="Script" path="res://assets/models/sink_mixer/sink_mixer_target.gd" id="6_target"]
+
+[sub_resource type="BoxShape3D" id="RimLongShape"]
+size = Vector3(0.045, 0.012, 0.48)
+
+[sub_resource type="BoxShape3D" id="RimCrossShape"]
+size = Vector3(0.35, 0.012, 0.067)
+
+[sub_resource type="BoxShape3D" id="BottomShape"]
+size = Vector3(0.27, 0.018, 0.245)
+
+[sub_resource type="BoxShape3D" id="MixerHitShape"]
+size = Vector3(0.090, 0.080, 0.125)
+
+[node name="CompactSinkAndMixer" type="Node3D"]
+script = ExtResource("5_script")
+
+[node name="Basin" parent="." instance=ExtResource("1_basin")]
+
+[node name="FaucetBody" parent="." instance=ExtResource("2_faucet")]
+
+[node name="DrainStrainer" parent="." instance=ExtResource("4_drain")]
+
+[node name="LeverPivot" type="Node3D" parent="."]
+position = Vector3(0.103, 0.035, -0.186)
+
+[node name="MixerLever" parent="LeverPivot" instance=ExtResource("3_lever")]
+
+[node name="LeverInteractable" type="StaticBody3D" parent="LeverPivot"]
+script = ExtResource("6_target")
+collision_layer = 2
+collision_mask = 0
+
+[node name="LeverHitbox" type="CollisionShape3D" parent="LeverPivot/LeverInteractable"]
+position = Vector3(0, 0.025, 0.033)
+shape = SubResource("MixerHitShape")
+
+[node name="SinkRimCollider" type="StaticBody3D" parent="."]
+collision_layer = 1
+collision_mask = 0
+
+[node name="LeftRim" type="CollisionShape3D" parent="SinkRimCollider"]
+position = Vector3(-0.198, 0, 0)
+shape = SubResource("RimLongShape")
+
+[node name="RightRim" type="CollisionShape3D" parent="SinkRimCollider"]
+position = Vector3(0.198, 0, 0)
+shape = SubResource("RimLongShape")
+
+[node name="RearRim" type="CollisionShape3D" parent="SinkRimCollider"]
+position = Vector3(0, 0, -0.206)
+shape = SubResource("RimCrossShape")
+
+[node name="FrontRim" type="CollisionShape3D" parent="SinkRimCollider"]
+position = Vector3(0, 0, 0.216)
+shape = SubResource("RimCrossShape")
+
+[node name="BasinBottomCollider" type="StaticBody3D" parent="."]
+collision_layer = 1
+collision_mask = 0
+
+[node name="BasinBottom" type="CollisionShape3D" parent="BasinBottomCollider"]
+position = Vector3(0, -0.174, 0.040)
+shape = SubResource("BottomShape")
+
+[node name="DrainCenter" type="Marker3D" parent="."]
+position = Vector3(0, -0.160, 0.045)
+
+[node name="WaterOutlet" type="Marker3D" parent="."]
+position = Vector3(0, 0.203, -0.031)
+
+[node name="CountertopCutoutCenter" type="Marker3D" parent="."]
+position = Vector3(0, 0, 0)
+
+[node name="HandReachFaucet" type="Marker3D" parent="."]
+position = Vector3(0.103, 0.088, -0.139)

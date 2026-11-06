@@ -1,0 +1,29 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/world/garage.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/trailer/coffee_trailer.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="4"]
+[ext_resource type="Script" path="res://scripts/systems/restoration_state.gd" id="5"]
+[ext_resource type="Script" path="res://scripts/ui/garage_hud.gd" id="6"]
+[ext_resource type="Script" path="res://scripts/audio/prototype_music.gd" id="7"]
+
+[node name="CoffeeShiftDEV02" type="Node3D"]
+script = ExtResource("1")
+
+[node name="Garage" parent="." instance=ExtResource("2")]
+
+[node name="CoffeeTrailer" parent="." instance=ExtResource("3")]
+
+[node name="Player" parent="." instance=ExtResource("4")]
+position = Vector3(3.1, 0.02, 3.8)
+rotation = Vector3(0, 0.50, 0)
+
+[node name="RestorationState" type="Node" parent="."]
+script = ExtResource("5")
+
+[node name="GarageHUD" type="CanvasLayer" parent="."]
+script = ExtResource("6")
+
+[node name="PrototypeMusic" type="Node" parent="."]
+script = ExtResource("7")

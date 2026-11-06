@@ -1,0 +1,20 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/models/takeaway_cup/coffee_shift_sip_lid_90mm.glb" id="1"]
+
+[sub_resource type="CylinderShape3D" id="Shape"]
+radius = 0.0462
+height = 0.0231
+
+[node name="TakeawaySipLid90mm" type="Node3D"]
+
+[node name="Model" parent="." instance=ExtResource("1")]
+
+[node name="Body" type="StaticBody3D" parent="."]
+
+[node name="Collision" type="CollisionShape3D" parent="Body"]
+position = Vector3(0, 0.00455, 0)
+shape = SubResource("Shape")
+
+[node name="SipPort" type="Marker3D" parent="."]
+position = Vector3(0, 0.015, 0.027)

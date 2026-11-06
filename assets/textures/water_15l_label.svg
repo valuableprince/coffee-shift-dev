@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="512" viewBox="0 0 1024 512">
+<title>Вода питьевая негазированная, 1,5 л</title>
+<desc>Простая бело-синяя этикетка без торговой марки. Надписи печатаются средствами Godot на русском языке.</desc>
+<defs>
+ <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+  <stop stop-color="#f6f3ed"/><stop offset="1" stop-color="#e9e8e5"/>
+ </linearGradient>
+</defs>
+<rect width="1024" height="512" fill="url(#paper)"/>
+<path d="M0 0H1024V65Q774 87 490 55Q235 18 0 68Z" fill="#1e58a8"/>
+<path d="M0 325Q260 270 521 333Q775 397 1024 327V512H0Z" fill="#2e70bd"/>
+<path d="M0 333Q258 284 512 340Q795 403 1024 340" fill="none" stroke="#87b4da" stroke-width="24"/>
+<path d="M0 362Q270 330 511 375Q753 410 1024 367" fill="none" stroke="#d8e6f0" stroke-width="9"/>
+<rect x="26" y="78" width="972" height="195" fill="#fffdf8" opacity=".50"/>
+</svg>

@@ -1,0 +1,5 @@
+{
+  "espresso": {"name": "Эспрессо", "price": 160, "beans": 1, "milk": 0, "cups": 1},
+  "cappuccino": {"name": "Капучино", "price": 240, "beans": 1, "milk": 1, "cups": 1},
+  "latte": {"name": "Латте", "price": 260, "beans": 1, "milk": 1, "cups": 1}
+}

@@ -1,0 +1,38 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/models/utrenniy_lug/milk_carton.tscn" id="1"]
+[ext_resource type="PackedScene" path="res://assets/models/utrenniy_lug/milk_carton_open.tscn" id="2"]
+[ext_resource type="Script" path="res://scenes/asset_preview_milk.gd" id="3"]
+
+[sub_resource type="BoxMesh" id="Worktop"]
+size = Vector3(0.95, 0.09, 0.52)
+
+[node name="MilkCartonPreview" type="Node3D"]
+script = ExtResource("3")
+
+[node name="Worktop" type="MeshInstance3D" parent="."]
+position = Vector3(0, -0.051, 0)
+mesh = SubResource("Worktop")
+
+[node name="ClosedCarton" parent="." instance=ExtResource("1")]
+position = Vector3(-0.14, 0, 0)
+
+[node name="OpenedCarton" parent="." instance=ExtResource("2")]
+position = Vector3(0.14, 0, 0)
+
+[node name="Camera3D" type="Camera3D" parent="."]
+position = Vector3(0.32, 0.25, 0.58)
+current = true
+fov = 37.0
+
+[node name="KeyLight" type="OmniLight3D" parent="."]
+position = Vector3(-0.26, 0.71, 0.36)
+light_color = Color(1, 0.80, 0.61, 1)
+light_energy = 3.0
+omni_range = 4.0
+
+[node name="FillLight" type="OmniLight3D" parent="."]
+position = Vector3(0.4, 0.34, -0.26)
+light_color = Color(0.73, 0.82, 1, 1)
+light_energy = 2.0
+omni_range = 3.0

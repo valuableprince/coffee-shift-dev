@@ -1,0 +1,87 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/models/coffee_trailer/coffee_trailer_shell.glb" id="trailer_shell"]
+[ext_resource type="PackedScene" path="res://assets/models/coffee_trailer/coffee_trailer_chassis.glb" id="trailer_chassis"]
+[ext_resource type="PackedScene" path="res://assets/models/coffee_trailer/coffee_trailer_window_hatch.glb" id="window_hatch"]
+[ext_resource type="PackedScene" path="res://assets/models/coffee_trailer/coffee_trailer_rear_door.glb" id="rear_door"]
+[ext_resource type="Script" path="res://assets/models/coffee_trailer/trailer_asset.gd" id="trailer_script"]
+[ext_resource type="Script" path="res://assets/models/coffee_trailer/trailer_target.gd" id="target_script"]
+
+[sub_resource type="BoxShape3D" id="WindowTarget"]
+size = Vector3(0.070, 0.88, 1.61)
+
+[sub_resource type="BoxShape3D" id="DoorTarget"]
+size = Vector3(0.93, 1.85, 0.09)
+
+[node name="CoffeeShiftTrailer3D" type="Node3D"]
+script = ExtResource("trailer_script")
+
+[node name="ShellVisual" parent="." instance=ExtResource("trailer_shell")]
+
+[node name="ChassisVisual" parent="." instance=ExtResource("trailer_chassis")]
+
+[node name="FixedShellCollision" type="StaticBody3D" parent="."]
+collision_layer = 1
+collision_mask = 0
+
+[node name="WindowHinge" type="Node3D" parent="."]
+position = Vector3(1.237, 2.105, 0)
+
+[node name="HatchVisual" parent="WindowHinge" instance=ExtResource("window_hatch")]
+
+[node name="HatchInteraction" type="StaticBody3D" parent="WindowHinge"]
+script = ExtResource("target_script")
+part = "window"
+collision_layer = 2
+collision_mask = 0
+
+[node name="Hitbox" type="CollisionShape3D" parent="WindowHinge/HatchInteraction"]
+position = Vector3(0.021, -0.450, 0)
+shape = SubResource("WindowTarget")
+
+[node name="RearDoorHinge" type="Node3D" parent="."]
+position = Vector3(-0.480, 0.400, 2.785)
+
+[node name="DoorVisual" parent="RearDoorHinge" instance=ExtResource("rear_door")]
+
+[node name="DoorInteraction" type="StaticBody3D" parent="RearDoorHinge"]
+script = ExtResource("target_script")
+part = "rear_door"
+collision_layer = 2
+collision_mask = 0
+
+[node name="Hitbox" type="CollisionShape3D" parent="RearDoorHinge/DoorInteraction"]
+position = Vector3(0.466, 0.943, 0)
+shape = SubResource("DoorTarget")
+
+[node name="AssetAnchors" type="Node3D" parent="."]
+
+[node name="EquipmentAnchor_CoffeeMachine" type="Marker3D" parent="AssetAnchors"]
+position = Vector3(0.82, 1.3, -1.52)
+
+[node name="EquipmentAnchor_Grinder" type="Marker3D" parent="AssetAnchors"]
+position = Vector3(0.82, 1.3, -1)
+
+[node name="EquipmentAnchor_CashRegister" type="Marker3D" parent="AssetAnchors"]
+position = Vector3(0.82, 1.2, 1.38)
+
+[node name="EquipmentAnchor_Sink" type="Marker3D" parent="AssetAnchors"]
+position = Vector3(-0.83, 1.3, 1.35)
+
+[node name="EquipmentAnchor_Fridge" type="Marker3D" parent="AssetAnchors"]
+position = Vector3(-0.84, 0.4, -0.12)
+
+[node name="EquipmentAnchor_Counter_Left" type="Marker3D" parent="AssetAnchors"]
+position = Vector3(-0.8, 1.27, 0)
+
+[node name="EquipmentAnchor_Counter_Right" type="Marker3D" parent="AssetAnchors"]
+position = Vector3(0.8, 1.27, 0)
+
+[node name="EquipmentAnchor_Window" type="Marker3D" parent="AssetAnchors"]
+position = Vector3(1.12, 1.2, 0)
+
+[node name="EquipmentAnchor_Door" type="Marker3D" parent="AssetAnchors"]
+position = Vector3(0, 0.4, 2.66)
+
+[node name="PlayerSpawn_Interior" type="Marker3D" parent="AssetAnchors"]
+position = Vector3(0, 0.4, 1.7)

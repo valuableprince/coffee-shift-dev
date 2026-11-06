@@ -1,0 +1,18 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/models/npc_office_worker/npc_office_worker_ps2plus.glb" id="1_npc"]
+[ext_resource type="Script" path="res://assets/models/npc_office_worker/npc_office_worker.gd" id="2_script"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_office"]
+radius = 0.24
+height = 1.82
+
+[node name="NPC_OfficeWorker" type="CharacterBody3D"]
+script = ExtResource("2_script")
+
+[node name="Visual" parent="." instance=ExtResource("1_npc")]
+rotation = Vector3(0, 3.141593, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+position = Vector3(0, 0.91, 0)
+shape = SubResource("CapsuleShape3D_office")

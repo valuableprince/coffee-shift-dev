@@ -1,0 +1,58 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/models/cash_register/cash_register.tscn" id="1_asset"]
+[ext_resource type="Script" path="res://assets/models/cash_register/preview.gd" id="2_preview"]
+
+[sub_resource type="BoxMesh" id="CounterMesh"]
+size = Vector3(1.65, 0.09, 1.18)
+
+[sub_resource type="StandardMaterial3D" id="CounterMaterial"]
+albedo_color = Color(0.42, 0.33, 0.22, 1)
+roughness = 0.86
+
+[sub_resource type="Environment" id="Studio"]
+background_mode = 1
+background_color = Color(0.17, 0.19, 0.20, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.86, 0.86, 0.82, 1)
+ambient_light_energy = 0.60
+
+[node name="CashRegisterPreview" type="Node3D"]
+script = ExtResource("2_preview")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Studio")
+
+[node name="Worktop" type="MeshInstance3D" parent="."]
+mesh = SubResource("CounterMesh")
+material_override = SubResource("CounterMaterial")
+position = Vector3(0, 0.80, 0)
+
+[node name="Register" parent="." instance=ExtResource("1_asset")]
+position = Vector3(0, 0.845, 0)
+
+[node name="Camera" type="Camera3D" parent="."]
+position = Vector3(0.42, 1.20, 1.29)
+rotation = Vector3(-0.20, 0.30, 0)
+fov = 55
+current = true
+
+[node name="KeyLight" type="DirectionalLight3D" parent="."]
+rotation = Vector3(-0.68, 0.50, 0)
+light_energy = 1.25
+light_color = Color(1, 0.94, 0.83, 1)
+
+[node name="FillLight" type="OmniLight3D" parent="."]
+position = Vector3(-0.8, 1.70, 0.90)
+light_energy = 0.48
+omni_range = 3.0
+light_color = Color(0.72, 0.85, 0.95, 1)
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="Help" type="Label" parent="UI"]
+offset_left = 18.0
+offset_top = 18.0
+offset_right = 650.0
+offset_bottom = 56.0
+text = "Enter / Space — открыть или закрыть денежный ящик"
