@@ -86,10 +86,17 @@ func toggle_window() -> bool:
 	return _commit("Окно выдачи открыто" if window_open else "Окно выдачи закрыто", "window")
 
 func prepare_equipment(device: String) -> bool:
-	if not equipment.has(device):
+	# Only the completed animation calls this. Repeats produce no checkpoint.
+	if not equipment.has(device) or equipment[device] or shift_open:
 		return false
 	equipment[device] = true
-	return _commit("Проверено: " + str({"machine":"кофемашина", "grinder":"кофемолка", "fridge":"холодильник", "cash":"касса"}[device]), "machine")
+	return _commit("Проверено: " + str({"machine":"кофемашина", "grinder":"кофемолка", "fridge":"холодильник", "cash":"касса"}[device]), "")
+
+func equipment_status(device: String) -> String:
+	return "COMPLETED" if equipment.get(device, false) else "PENDING"
+
+func equipment_ready() -> bool:
+	return not equipment.values().has(false)
 
 func open_shift() -> bool:
 	if shift_open:
@@ -117,6 +124,8 @@ func close_shift() -> bool:
 		return notify("Новые заказы остановлены. Завершите принятые заказы и снова закройте смену")
 	shift_open = false
 	history.append(report())
+	# Reset only after a successful close, including a second shift on the same day.
+	for device in equipment: equipment[device] = false
 	return _commit("Смена закрыта. Отчёт готов", "cash")
 
 func report() -> Dictionary:

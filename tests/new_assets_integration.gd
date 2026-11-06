@@ -115,7 +115,9 @@ func run() -> void:
 	await frames(40)
 	await shot("09-context-door")
 	await use("cash")
-	check(register.drawer_open and level.session.equipment.cash,"physical cash E prepares existing cash and opens exactly once")
+	check(not register.drawer_open and level.session.equipment.cash,"physical cash inspection checks keys without opening drawer")
+	await use("cash")
+	check(register.drawer_open,"checked cash E retains ordinary drawer operation")
 	await frames(32)
 	check(is_equal_approx(level.cash_drawer.position.z,.17),"drawer moves exactly 17 cm independently of register")
 	var fixed_position := register.global_position

@@ -59,12 +59,13 @@ func run() -> void:
 	await aim(level.stations.grinder.global_position, Vector3(0, .4, -1))
 	await frames(3)
 	check(level.player.get_interactable() == level.stations.grinder, "hover reaches existing grinder interaction")
-	check(level.hud.hint.text == "Кофемолка — [E] Использовать", "hover shows noun and real action below dot")
+	check(level.hud.hint.text == "Кофемолка — [E] Осмотреть", "hover shows noun and real action below dot")
 	await capture("02-grinder-hover-1080")
 	await aim(Vector3(.83, 1.73, -1), Vector3(0, .4, -1))
 	check(level.player.ray.get_collider() == model.get_node("StaticBody3D"), "ray hits imported nested collider rather than proxy")
 	check(level.player.get_interactable() == level.stations.grinder, "nested imported collider resolves to same interaction owner")
 	await key(KEY_E)
+	await wait_inspection()
 	check(level.session.equipment.grinder, "E through nested collider checks actual grinder")
 	check(not level.stations.grinder.get_available_action().contains("[E]"), "checked grinder does not offer unavailable grinding without beans")
 	# Occlusion: first ray hit is a real solid wall, not a hidden second query.
@@ -82,6 +83,7 @@ func run() -> void:
 	await aim(far_target.global_position, Vector3(3.5,.02,7))
 	check(level.player.get_interactable() == null and level.hud.hint.text.is_empty(), "out-of-range object has no hint")
 	far_target.queue_free()
+	await use("fridge") # DEV-05 inspection opens and closes, without taking milk.
 	await use("fridge")
 	check(not level.stations.fridge.get_available_action().contains("[E]"), "moving fridge door offers no unavailable E action")
 	await frames(32)

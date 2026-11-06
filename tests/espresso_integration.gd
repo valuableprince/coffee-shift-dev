@@ -34,6 +34,7 @@ func run() -> void:
 		check(level.hud.hint.text.begins_with("Кофемашина"), "existing contextual name at " + control)
 		if control == "power":
 			await key(KEY_E)
+			await wait_inspection()
 			check(level.session.equipment.machine, "model power control prepares existing equipment")
 	for action in ["filter", "water", "steam"]:
 		await aim(level.stations[action].global_position, Vector3(0,.4,level.stations[action].global_position.z))

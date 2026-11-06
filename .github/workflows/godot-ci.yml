@@ -43,4 +43,6 @@ jobs:
           Godot_v4.3-stable_linux.x86_64 --headless --path . --script tests/dev03_domain.gd -- --test-mode 2>&1 | tee /tmp/godot-domain.log
           Godot_v4.3-stable_linux.x86_64 --headless --path . --script tests/career_transactions.gd -- --test-mode 2>&1 | tee /tmp/godot-career.log
           Godot_v4.3-stable_linux.x86_64 --headless --path . --script tests/prototype_music_smoke.gd -- --test-mode 2>&1 | tee /tmp/godot-audio.log
-          if grep -E 'SCRIPT ERROR|Parse Error|FAIL:' /tmp/godot-domain.log /tmp/godot-career.log /tmp/godot-audio.log; then exit 1; fi
+          Godot_v4.3-stable_linux.x86_64 --headless --path . --script tests/dev05_inspection.gd -- --test-mode 2>&1 | tee /tmp/godot-dev05.log
+          if grep -E 'SCRIPT ERROR|Parse Error|FAIL:' /tmp/godot-domain.log /tmp/godot-career.log /tmp/godot-audio.log /tmp/godot-dev05.log; then exit 1; fi
+          grep -E 'DEV05 INSPECTION: [0-9]+ checks; 0 failures' /tmp/godot-dev05.log

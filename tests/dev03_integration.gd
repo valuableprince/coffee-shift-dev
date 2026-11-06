@@ -67,6 +67,13 @@ func use(action: String) -> void:
 	await aim(target.global_position, Vector3(0, .4, clampf(target.global_position.z, -2.10, 2.0)))
 	check(level.player.get_interactable() == target, "raycast reaches " + action)
 	await key(KEY_E)
+	await wait_inspection()
+
+func wait_inspection() -> void:
+	for i in range(150):
+		if not level.inspection.busy: return
+		await physics_frame
+	check(false, "equipment animation finishes within 2.5 seconds")
 
 func shot(name: String) -> void:
 	if screenshots == "" or DisplayServer.get_name() == "headless": return
