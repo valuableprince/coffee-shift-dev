@@ -28,7 +28,10 @@ func key(code: int) -> void:
 		event.keycode = code
 		event.physical_keycode = code
 		event.pressed = pressed
-		Input.parse_input_event(event)
+		# Route to the game window even when the runner owns desktop focus;
+		# one rendered frame also prevents press/release sharing a catch-up tick.
+		root.push_input(event, true)
+		await process_frame
 		await frames(2)
 
 func aim(point: Vector3, standing: Vector3) -> void:
@@ -70,7 +73,7 @@ func run() -> void:
 			var canvas_size := root.get_visible_rect().size
 			var scale_factor := minf(canvas_size.x / 1280.0, canvas_size.y / 720.0)
 			check(rect.size.x >= 650 * scale_factor and rect.size.x <= 760 * scale_factor, "compact width " + str(dimensions))
-			check(rect.size.y >= 110 * scale_factor and rect.size.y <= 145 * scale_factor, "compact height " + str(dimensions))
+			check(rect.size.y >= 110 * scale_factor and rect.size.y <= 190 * scale_factor, "compact height with readable Rubik and a separate footer " + str(dimensions))
 			check(absf(rect.get_center().x - canvas_size.x * .5) < 2, "dialogue centered on screen")
 			print("DIALOGUE MEASUREMENT: window=%s canvas=%s panel=%s" % [dimensions, canvas_size, rect])
 			check(not rect.intersects(level.hud.orders_panel.get_global_rect()), "orders sidebar clear of dialogue")
@@ -157,6 +160,10 @@ func run() -> void:
 			{"label": "Выбрать мышью", "call": func() -> void: selected = 5}], true)
 		await frames()
 		var point := level.hud._dialogue_buttons[0].get_global_rect().get_center()
+		var motion := InputEventMouseMotion.new()
+		motion.position = point
+		motion.global_position = point
+		root.push_input(motion, true)
 		for pressed in [true, false]:
 			var mouse := InputEventMouseButton.new()
 			mouse.position = point

@@ -4,6 +4,7 @@ extends RefCounted
 signal changed
 signal checkpoint(reason: String)
 signal sound_requested(event: String)
+signal customer_remark(customer: Dictionary, text: String)
 
 var catalog := ShiftRecipeCatalog.new()
 var inventory: ShiftInventory
@@ -428,7 +429,7 @@ func tick(delta: float) -> void:
 			c.state = "leaving"
 		elif float(c.wait) > float(catalog.config.customers.patience_seconds) and c.state == "waiting" and not c.warned:
 			c.warned = true
-			notify("Покупатель ждёт заказ №%03d" % int(c.order))
+			customer_remark.emit(c, "Подскажите, заказ №%03d скоро будет готов?" % int(c.order))
 	for c in remove:
 		customers.erase(c)
 

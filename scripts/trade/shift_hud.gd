@@ -26,9 +26,11 @@ var orders_editing := false
 var dialogue_word_reveal := true
 var dialogue_word_interval := 0.12
 var _dialogue_copy: Label
-var _word_ends: Array[int] = []
-var _word_index := 0
-var _word_elapsed := 0.0
+var _words := DialogueWordReveal.new()
+var _word_ends: Array[int]:
+	get: return _words.word_ends
+var _word_index: int:
+	get: return _words.index
 var _dialogue_buttons: Array[Button] = []
 var _modal_style: StyleBoxFlat
 var _dialogue_style: StyleBoxFlat
@@ -36,6 +38,20 @@ var _dialogue_mode := false
 var _dialogue_text_scroll: ScrollContainer
 var _dialogue_indicator: Label
 var _dialogue_navigation: Array[Button] = []
+var _dialogue_actions_scroll: ScrollContainer
+var _dialogue_actions: VBoxContainer
+var _dialogue_back: Button
+var _dialogue_header: HBoxContainer
+var _dialogue_footer: HBoxContainer
+var _dialogue_generation := 0
+var _dialogue_action_used := false
+var _dialogue_can_close := true
+var _skip_release := 0
+var aside: PanelContainer
+var _aside_speaker: Label
+var _aside_copy: Label
+var _aside_words := DialogueWordReveal.new()
+var _aside_time := 0.0
 
 func _ready() -> void:
 	root = Control.new()
@@ -88,14 +104,7 @@ func _ready() -> void:
 	style.content_margin_top = 20
 	style.content_margin_bottom = 20
 	_modal_style = style
-	_dialogue_style = style.duplicate() as StyleBoxFlat
-	_dialogue_style.bg_color = Color(0.055, 0.105, 0.104, 0.93)
-	_dialogue_style.set_border_width_all(1)
-	_dialogue_style.set_corner_radius_all(4)
-	_dialogue_style.content_margin_left = 12
-	_dialogue_style.content_margin_right = 12
-	_dialogue_style.content_margin_top = 8
-	_dialogue_style.content_margin_bottom = 8
+	_dialogue_style = DialogueStyle.surface()
 	panel.add_theme_stylebox_override("panel", _modal_style)
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -106,10 +115,12 @@ func _ready() -> void:
 	panel_content.add_theme_constant_override("separation", 12)
 	scroll.add_child(panel_content)
 	panel.hide()
+	_build_aside()
 	get_viewport().size_changed.connect(func() -> void:
 		if panel.visible:
 			_layout_panel(_dialogue_mode)
-			if _dialogue_mode: call_deferred("_fit_dialogue_panel"))
+			if _dialogue_mode: call_deferred("_fit_dialogue_panel")
+		if aside.visible: _layout_aside())
 
 func _build_orders_panel() -> void:
 	orders_panel = PanelContainer.new()
@@ -219,25 +230,26 @@ func say(value: String) -> void:
 func set_dialogue_preferences(enabled: bool, word_interval: float) -> void:
 	dialogue_word_reveal = enabled
 	dialogue_word_interval = clampf(word_interval, 0.06, 0.25)
-	if not enabled and _is_typing():
-		_reveal_dialogue()
+	if not enabled and _is_typing(): _reveal_dialogue()
+	if not enabled: _aside_words.reveal()
 
 func _layout_panel(is_dialogue: bool) -> void:
 	_dialogue_mode = is_dialogue
+	panel.theme = DialogueStyle.theme() if is_dialogue else null
 	if is_dialogue:
 		panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
 		var viewport_size := get_viewport().get_visible_rect().size
 		var factor := _dialogue_scale()
-		var width := minf(720.0 * factor, viewport_size.x - 32.0)
+		var width := minf(760.0 * factor, viewport_size.x - 32.0)
 		panel.offset_left = -width * .5
 		panel.offset_right = width * .5
 		panel.offset_bottom = -22.0 * factor
-		panel.offset_top = panel.offset_bottom - 112.0 * factor
-		_dialogue_style.content_margin_left = 12 * factor
-		_dialogue_style.content_margin_right = 12 * factor
-		_dialogue_style.content_margin_top = 8 * factor
-		_dialogue_style.content_margin_bottom = 8 * factor
-		panel_content.add_theme_constant_override("separation", roundi(4 * factor))
+		panel.offset_top = panel.offset_bottom - 136.0 * factor
+		_dialogue_style.content_margin_left = 20 * factor
+		_dialogue_style.content_margin_right = 20 * factor
+		_dialogue_style.content_margin_top = 13 * factor
+		_dialogue_style.content_margin_bottom = 12 * factor
+		panel_content.add_theme_constant_override("separation", roundi(7 * factor))
 		panel.add_theme_stylebox_override("panel", _dialogue_style)
 	else:
 		panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
@@ -250,6 +262,7 @@ func _layout_panel(is_dialogue: bool) -> void:
 	control_hints.visible = not is_dialogue
 
 func _dialogue_scale() -> float:
+	# canvas_items already scales the logical viewport at 1080p.
 	var view := get_viewport().get_visible_rect().size
 	return clampf(minf(view.x / 1280.0, view.y / 720.0), .8, 1.5)
 
@@ -257,45 +270,57 @@ func _fit_dialogue_panel() -> void:
 	if not _dialogue_mode or not panel.visible: return
 	var factor := _dialogue_scale()
 	for label in panel_content.find_children("*", "Label", true, false):
-		label.add_theme_font_size_override("font_size", roundi((12 if label == _dialogue_indicator else 16 if label.name == "Speaker" else 17) * factor))
+		label.add_theme_font_size_override("font_size", roundi((12 if label == _dialogue_indicator else 17 if label.name == "Speaker" else 19) * factor))
 	for button in _dialogue_navigation:
-		button.add_theme_font_size_override("font_size", roundi(14 * factor))
-		button.custom_minimum_size.y = 28 * factor
+		button.add_theme_font_size_override("font_size", roundi((12 if button == _dialogue_back else 16) * factor))
+		button.custom_minimum_size.y = (25 if button == _dialogue_back else 34) * factor
 	if _dialogue_text_scroll != null:
-		_dialogue_text_scroll.custom_minimum_size.y = clampf(_dialogue_copy.get_combined_minimum_size().y, 28 * factor, 60 * factor)
+		var line_height := float(_dialogue_copy.get_line_height())
+		var three_lines := line_height * 3 + _dialogue_copy.get_theme_constant("line_spacing") * 2
+		_dialogue_text_scroll.custom_minimum_size.y = clampf(_dialogue_copy.get_combined_minimum_size().y, line_height, three_lines)
+	if _dialogue_actions_scroll != null:
+		_dialogue_actions_scroll.custom_minimum_size.y = minf(_dialogue_actions.get_combined_minimum_size().y, 122 * factor)
 	var view_height := get_viewport().get_visible_rect().size.y
-	var content_height := panel_content.get_combined_minimum_size().y + 16.0 * factor
-	var desired := clampf(content_height, 112.0 * factor, minf(270.0 * factor, view_height * .43))
+	var content_height := panel_content.get_combined_minimum_size().y + 25.0 * factor
+	var desired := clampf(content_height, 136.0 * factor, minf(300.0 * factor, view_height * .43))
 	panel.offset_top = panel.offset_bottom - desired
 
 func _is_typing() -> bool:
-	return _dialogue_mode and panel.visible and _dialogue_copy != null and _word_index < _word_ends.size()
+	return _dialogue_mode and panel.visible and _words.is_typing()
 
 func _reveal_dialogue() -> void:
-	if _dialogue_copy != null:
-		_dialogue_copy.visible_characters = -1
-	_word_index = _word_ends.size()
+	_words.reveal()
 	for button in _dialogue_buttons:
-		if is_instance_valid(button):
-			button.disabled = false
+		if is_instance_valid(button): button.disabled = _dialogue_action_used
 	_update_dialogue_indicator()
-	if not _dialogue_buttons.is_empty(): _dialogue_buttons[0].grab_focus()
+	if not _dialogue_buttons.is_empty() and not _dialogue_action_used: _dialogue_buttons[0].grab_focus()
 
 func _update_dialogue_indicator() -> void:
 	if not is_instance_valid(_dialogue_indicator): return
-	_dialogue_indicator.text = "Space / ЛКМ — весь текст" if _is_typing() else "↑/↓ — выбор · Enter / ЛКМ"
-	if not _is_typing() and _dialogue_copy != null and _dialogue_copy.get_line_count() > 3:
-		_dialogue_indicator.text += " · PgUp/PgDn — текст"
+	_dialogue_indicator.text = "Space / ЛКМ — весь текст" if _is_typing() else "↑ ↓  выбор     Enter / ЛКМ  ответ"
+	if _dialogue_copy != null and _dialogue_text_scroll != null and _dialogue_copy.size.y > _dialogue_text_scroll.size.y + 1:
+		_dialogue_indicator.text += "     PgUp / PgDn  текст"
 
-func show_panel(title: String, body: String, actions: Array = [], is_dialogue: bool = false) -> void:
+func _activate_dialogue_action(generation: int, callback: Callable) -> void:
+	if generation != _dialogue_generation or _dialogue_action_used or _is_typing() or not panel.visible: return
+	_dialogue_action_used = true
+	for button in _dialogue_buttons: button.disabled = true
+	# Only the authoritative callback applies order / story / economy effects.
+	callback.call()
+
+func show_panel(title: String, body: String, actions: Array = [], is_dialogue: bool = false, can_close: bool = true) -> void:
+	clear_aside()
+	_dialogue_generation += 1
+	var generation := _dialogue_generation
+	_dialogue_action_used = false
+	_dialogue_can_close = can_close
 	_layout_panel(is_dialogue)
 	_dialogue_copy = null
-	_word_ends.clear()
-	_word_index = 0
-	_word_elapsed = 0.0
+	_words.clear()
 	_dialogue_buttons.clear()
 	_dialogue_navigation.clear()
 	_dialogue_text_scroll = null
+	_dialogue_actions_scroll = null
 	_dialogue_indicator = null
 	for child in panel_content.get_children():
 		panel_content.remove_child(child)
@@ -303,63 +328,55 @@ func show_panel(title: String, body: String, actions: Array = [], is_dialogue: b
 	var heading := Label.new()
 	heading.name = "Speaker"
 	heading.text = title
-	heading.add_theme_font_size_override("font_size", 16 if is_dialogue else 26)
+	heading.add_theme_font_size_override("font_size", 17 if is_dialogue else 26)
 	if is_dialogue:
-		heading.add_theme_color_override("font_color", Color("e4c78d"))
+		heading.add_theme_color_override("font_color", DialogueStyle.NAME)
 		heading.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var header := HBoxContainer.new()
-		panel_content.add_child(header)
-		header.add_child(heading)
-		_dialogue_indicator = Label.new()
-		_dialogue_indicator.add_theme_color_override("font_color", Color("a5b4ad"))
-		header.add_child(_dialogue_indicator)
+		_dialogue_header = HBoxContainer.new()
+		panel_content.add_child(_dialogue_header)
+		_dialogue_header.add_child(heading)
 	else: panel_content.add_child(heading)
 	var copy := Label.new()
 	copy.text = body
 	copy.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	copy.add_theme_font_size_override("font_size", 17 if is_dialogue else 18)
+	copy.add_theme_font_size_override("font_size", 19 if is_dialogue else 18)
 	if is_dialogue:
 		_dialogue_copy = copy
-		if dialogue_word_reveal:
-			var word_regex := RegEx.new()
-			word_regex.compile("\\S+")
-			for word in word_regex.search_all(body):
-				_word_ends.append(word.get_end())
-			copy.visible_characters = 0 if not _word_ends.is_empty() else -1
-	if is_dialogue:
+		_words.start(copy, dialogue_word_reveal)
 		_dialogue_text_scroll = ScrollContainer.new()
 		_dialogue_text_scroll.name = "DialogueText"
 		_dialogue_text_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-		_dialogue_text_scroll.custom_minimum_size.y = 60 * _dialogue_scale()
+		_dialogue_text_scroll.custom_minimum_size.y = 27 * _dialogue_scale()
 		copy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		panel_content.add_child(_dialogue_text_scroll)
 		_dialogue_text_scroll.add_child(copy)
+		_dialogue_actions_scroll = ScrollContainer.new()
+		_dialogue_actions_scroll.name = "DialogueReplies"
+		_dialogue_actions_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		_dialogue_actions_scroll.follow_focus = true
+		panel_content.add_child(_dialogue_actions_scroll)
+		_dialogue_actions = VBoxContainer.new()
+		_dialogue_actions.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_dialogue_actions.add_theme_constant_override("separation", 2)
+		_dialogue_actions_scroll.add_child(_dialogue_actions)
 	else: panel_content.add_child(copy)
-	var dialogue_actions: Container
-	if is_dialogue:
-		dialogue_actions = HBoxContainer.new() if actions.size() <= 2 else VBoxContainer.new()
-		dialogue_actions.add_theme_constant_override("separation", 6)
-		panel_content.add_child(dialogue_actions)
 	var grid: GridContainer
 	for action in actions:
-		var button := Button.new()
+		var button: Button = DialogueChoice.new() if is_dialogue else Button.new()
 		button.text = str(action.label)
-		button.custom_minimum_size.y = 28 if is_dialogue else 40
-		if is_dialogue:
-			button.add_theme_font_size_override("font_size", 14)
-			button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.custom_minimum_size.y = 34 if is_dialogue else 40
 		button.disabled = bool(action.get("disabled", false))
-		if is_dialogue and not button.disabled:
-			_dialogue_buttons.append(button)
-			if not _word_ends.is_empty():
-				button.disabled = true
-		button.pressed.connect(action.call)
 		if is_dialogue:
+			if not button.disabled:
+				_dialogue_buttons.append(button)
+				button.disabled = _words.is_typing()
+			var callback: Callable = action.call
+			button.pressed.connect(func() -> void: _activate_dialogue_action(generation, callback))
 			_dialogue_navigation.append(button)
-			dialogue_actions.add_child(button)
+			_dialogue_actions.add_child(button)
 		elif action.get("grid", false):
+			button.pressed.connect(action.call)
 			if grid == null:
 				grid = GridContainer.new()
 				grid.columns = 4
@@ -370,74 +387,142 @@ func show_panel(title: String, body: String, actions: Array = [], is_dialogue: b
 			button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			grid.add_child(button)
 		else:
+			button.pressed.connect(action.call)
 			grid = null
 			panel_content.add_child(button)
 	var back := Button.new()
 	back.text = "К работе [Esc]" if is_dialogue else "Вернуться к работе [Esc]"
-	back.custom_minimum_size.y = 28 if is_dialogue else 42
-	back.pressed.connect(close_panel)
+	back.custom_minimum_size.y = 25 if is_dialogue else 42
+	back.pressed.connect(request_close_panel)
+	back.visible = can_close
 	if is_dialogue:
-		back.add_theme_font_size_override("font_size", 14)
-		dialogue_actions.add_child(back)
-		_dialogue_navigation.append(back)
+		_dialogue_back = back
+		_dialogue_footer = HBoxContainer.new()
+		panel_content.add_child(_dialogue_footer)
+		_dialogue_indicator = Label.new()
+		_dialogue_indicator.add_theme_color_override("font_color", Color("e1dcd3"))
+		_dialogue_indicator.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_dialogue_footer.add_child(_dialogue_indicator)
+		_dialogue_footer.add_child(back)
+		if can_close: _dialogue_navigation.append(back)
 	else: panel_content.add_child(back)
 	panel.show()
 	if is_dialogue:
 		_update_dialogue_indicator()
+		_fit_dialogue_panel()
 		call_deferred("_fit_dialogue_panel")
 		if not _is_typing() and not _dialogue_buttons.is_empty(): _dialogue_buttons[0].grab_focus()
 
+func request_close_panel() -> void:
+	if _dialogue_mode and not _dialogue_can_close: return
+	close_panel()
+
 func close_panel() -> void:
+	dismiss_panel()
+	panel_closed.emit()
+
+func dismiss_panel() -> void:
+	# Menu/load transitions clear the view without briefly recapturing the mouse.
 	panel.hide()
 	control_hints.visible = true
 	_dialogue_copy = null
-	_word_ends.clear()
+	_words.clear()
 	_dialogue_buttons.clear()
 	_dialogue_navigation.clear()
 	_dialogue_mode = false
-	panel_closed.emit()
+	_dialogue_generation += 1
+	_skip_release = 0
 
 func _input(event: InputEvent) -> void:
-	if _dialogue_mode and panel.visible and event is InputEventKey and event.pressed and not event.echo:
+	if not _dialogue_mode or not panel.visible: return
+	if _skip_release != 0:
+		var released: bool = (event is InputEventKey and not event.pressed and event.keycode == _skip_release) or (event is InputEventMouseButton and not event.pressed and _skip_release == -1 and event.button_index == MOUSE_BUTTON_LEFT)
+		if released:
+			_skip_release = 0
+			get_viewport().set_input_as_handled()
+			return
+	if event is InputEventKey and event.pressed:
+		if event.echo and event.keycode in [KEY_ENTER, KEY_SPACE]:
+			get_viewport().set_input_as_handled()
+			return
 		if event.keycode in [KEY_PAGEUP, KEY_PAGEDOWN] and _dialogue_text_scroll != null:
 			_dialogue_text_scroll.scroll_vertical += roundi(_dialogue_text_scroll.size.y) * (1 if event.keycode == KEY_PAGEDOWN else -1)
 			get_viewport().set_input_as_handled()
 			return
 		if not _is_typing() and event.keycode in [KEY_UP, KEY_DOWN]:
-			var available := _dialogue_navigation.filter(func(b: Button) -> bool: return not b.disabled)
+			var available := _dialogue_navigation.filter(func(b: Button) -> bool: return not b.disabled and b.visible)
 			if not available.is_empty():
 				var index := available.find(get_viewport().gui_get_focus_owner())
 				var step := 1 if event.keycode == KEY_DOWN else -1
 				available[posmod(index + step, available.size())].grab_focus()
 			get_viewport().set_input_as_handled()
 			return
-	if not _is_typing():
-		return
+	if not _is_typing(): return
 	var skip := false
 	if event is InputEventKey:
 		skip = event.pressed and not event.echo and event.keycode in [KEY_SPACE, KEY_ENTER]
+		if skip: _skip_release = event.keycode
 	elif event is InputEventMouseButton:
 		skip = event.pressed and event.button_index == MOUSE_BUTTON_LEFT
+		if skip: _skip_release = -1
 	if skip:
 		_reveal_dialogue()
 		get_viewport().set_input_as_handled()
 
 func _advance_dialogue(delta: float) -> void:
-	if not _is_typing():
-		return
-	_word_elapsed -= delta
-	while _word_elapsed <= 0.0 and _word_index < _word_ends.size():
-		var end_char := _word_ends[_word_index]
-		_dialogue_copy.visible_characters = end_char
-		_word_index += 1
-		_word_elapsed += dialogue_word_interval
-		var word_so_far := _dialogue_copy.text.substr(0, end_char).strip_edges()
-		if word_so_far.ends_with(".") or word_so_far.ends_with("!") or word_so_far.ends_with("?"):
-			_word_elapsed += 0.17
-		elif word_so_far.ends_with(","):
-			_word_elapsed += 0.08
-	if _word_index >= _word_ends.size():
-		_reveal_dialogue()
+	if not _is_typing(): return
+	_words.advance(delta, dialogue_word_interval)
+	if not _words.is_typing(): _reveal_dialogue()
+
+func _build_aside() -> void:
+	aside = PanelContainer.new()
+	aside.name = "CustomerAside"
+	aside.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	aside.theme = DialogueStyle.theme()
+	aside.add_theme_stylebox_override("panel", DialogueStyle.surface())
+	root.add_child(aside)
+	var column := VBoxContainer.new()
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	aside.add_child(column)
+	_aside_speaker = Label.new()
+	_aside_speaker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_aside_speaker.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_aside_speaker.add_theme_color_override("font_color", DialogueStyle.NAME)
+	column.add_child(_aside_speaker)
+	_aside_copy = Label.new()
+	_aside_copy.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_aside_copy.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(_aside_copy)
+	aside.hide()
+
+func _layout_aside() -> void:
+	var factor := _dialogue_scale()
+	aside.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	var width := minf(620 * factor, root.size.x - 32)
+	aside.offset_left = -width * .5
+	aside.offset_right = width * .5
+	aside.offset_bottom = -65 * factor
+	_aside_speaker.add_theme_font_size_override("font_size", roundi(14 * factor))
+	_aside_copy.add_theme_font_size_override("font_size", roundi(17 * factor))
+	# Do not measure a hidden wrapping Label before its first layout: at width
+	# zero its cached minimum height can inflate the panel above the viewport.
+	aside.offset_top = aside.offset_bottom - 100 * factor
+
+func show_aside(speaker: String, body: String, duration: float = 6.0) -> bool:
+	if panel.visible or body.strip_edges().is_empty(): return false
+	_aside_speaker.text = speaker
+	_aside_copy.text = body
+	_aside_words.start(_aside_copy, dialogue_word_reveal)
+	# Read time begins after reveal; slow typing cannot expire a half-read line.
+	_aside_time = maxf(3.0, duration)
+	_layout_aside()
+	aside.show()
+	return true
+
+func clear_aside() -> void:
+	if aside != null: aside.hide()
+	_aside_words.clear()
+	_aside_time = 0
 
 func refresh(session: CoffeeShiftSession) -> void:
 	_refresh_orders(session)
@@ -475,6 +560,10 @@ func _process(delta: float) -> void:
 		_update_dialogue_indicator()
 	orders_panel.size.y = minf(available, orders_column.get_combined_minimum_size().y + 14)
 	_advance_dialogue(delta)
+	if aside.visible:
+		if _aside_words.is_typing(): _aside_words.advance(delta, dialogue_word_interval)
+		else: _aside_time -= delta
+		if _aside_time <= 0: clear_aside()
 	_message_time -= delta
 	if _message_time <= 0:
 		message.text = ""

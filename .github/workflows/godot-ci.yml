@@ -44,5 +44,8 @@ jobs:
           Godot_v4.3-stable_linux.x86_64 --headless --path . --script tests/career_transactions.gd -- --test-mode 2>&1 | tee /tmp/godot-career.log
           Godot_v4.3-stable_linux.x86_64 --headless --path . --script tests/prototype_music_smoke.gd -- --test-mode 2>&1 | tee /tmp/godot-audio.log
           Godot_v4.3-stable_linux.x86_64 --headless --path . --script tests/dev05_inspection.gd -- --test-mode 2>&1 | tee /tmp/godot-dev05.log
-          if grep -E 'SCRIPT ERROR|Parse Error|FAIL:' /tmp/godot-domain.log /tmp/godot-career.log /tmp/godot-audio.log /tmp/godot-dev05.log; then exit 1; fi
+          Godot_v4.3-stable_linux.x86_64 --headless --path . --script tests/dialogue_ui.gd -- --test-mode 2>&1 | tee /tmp/godot-dialogue.log
+          Godot_v4.3-stable_linux.x86_64 --headless --path . --script tests/dialogue_ui01.gd -- --test-mode 2>&1 | tee /tmp/godot-dialogue-ui01.log
+          if grep -E 'SCRIPT ERROR|Parse Error|FAIL:' /tmp/godot-dialogue.log /tmp/godot-dialogue-ui01.log /tmp/godot-domain.log /tmp/godot-career.log /tmp/godot-audio.log /tmp/godot-dev05.log; then exit 1; fi
           grep -E 'DEV05 INSPECTION: [0-9]+ checks; 0 failures' /tmp/godot-dev05.log
+          grep -E 'DIALOGUE UI01: [0-9]+ checks; 0 failures' /tmp/godot-dialogue-ui01.log

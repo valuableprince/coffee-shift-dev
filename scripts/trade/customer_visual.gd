@@ -59,4 +59,5 @@ func sync(customer: Dictionary, delta: float) -> void:
 	right_arm.rotation.x = left_leg.rotation.x * .7
 	if customer.state in ["counter", "payment", "pickup"]:
 		right_arm.rotation.x = -.8 + sin(phase) * .15
-	label.text = "№%03d" % int(customer.order) if int(customer.order) > 0 else str(customer.name)
+	# Queue numbers remain useful; private profile names never float above heads.
+	label.text = "№%03d" % int(customer.order) if int(customer.order) > 0 else ""
