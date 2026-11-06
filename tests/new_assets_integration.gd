@@ -51,7 +51,7 @@ func run() -> void:
 	check(level.new_game(1),"existing new-career entry works")
 	var assets := level.new_assets
 	var register := assets.register
-	var source_data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://docs/asset-integration/new-assets-sources.json"))
+	var source_data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/new_assets_sources.json"))
 	for source in source_data.sources:
 		if source.path.ends_with(".glb"):
 			check(FileAccess.get_sha256("res://"+source.path) == source.sha256,"source GLB bytes preserved: " + str(source.path))

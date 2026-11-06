@@ -61,7 +61,7 @@ func _ready() -> void:
 	var controls := _label(Vector2.ZERO, 12)
 	control_hints = controls
 	controls.name = "ControlHints"
-	controls.text = "WASD — ходьба   E — предмет   Tab — заказы   N — справочник   F6 — сохранения   Esc — меню\nM / P — музыка / мелодия"
+	controls.text = "WASD — ходьба   E — предмет / радио   Tab — заказы   N — справочник   F6 — сохранения   Esc — меню"
 	controls.add_theme_color_override("font_color", Color("c5ccc4"))
 	controls.add_theme_constant_override("shadow_offset_y", 1)
 	controls.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)

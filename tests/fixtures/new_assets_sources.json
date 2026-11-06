@@ -1,0 +1,49 @@
+{
+  "baseline_commit": "e4ae39740cb2bfe3efa22e00109fc3808fbad11c",
+  "sources": [
+    {
+      "path": "assets/models/cabinets/base_cabinet_body.glb",
+      "sha256": "38e462b9ef84c8279fcd566e050243a940ab6371c63cd10589d62f5d12abfa40"
+    },
+    {
+      "path": "assets/models/cabinets/base_cabinet_door_left.glb",
+      "sha256": "0b515b569bfa2e61a6ee25745b310725ec8d443bf4ae31b89cdb2d58935dc066"
+    },
+    {
+      "path": "assets/models/cabinets/base_cabinet_door_right.glb",
+      "sha256": "ee65886cd6468f0c908a13cd8f2db50d9f6d9d2ebd2d9874167257d9740ccd04"
+    },
+    {
+      "path": "assets/models/cabinets/wall_cabinet_body.glb",
+      "sha256": "cc039f1d4650e302d6d1b00a7cf8ff54eb817c7a4a6b23b84674e5103731837b"
+    },
+    {
+      "path": "assets/models/cabinets/wall_cabinet_door_left.glb",
+      "sha256": "3f0d557884ebe62adbb3fe46a5aeb4e9e890d19a94bc5d08992f8f9a5503c178"
+    },
+    {
+      "path": "assets/models/cabinets/wall_cabinet_door_right.glb",
+      "sha256": "e07fbf96d9d1dae73c7461cf0e0bfd77b4c31d80f6ecf507703ba8ba64c74ade"
+    },
+    {
+      "path": "assets/models/cash_register/cash_drawer.glb",
+      "sha256": "035ad68fc45d0e4253315aba8a3e4e7e863d5afb001481bc50a572e336aba011"
+    },
+    {
+      "path": "assets/models/cash_register/cash_register_body.glb",
+      "sha256": "a620fd187434ab5a68c25d68d84fe3774b35352b8e8ed886c7c67db88c5d9068"
+    },
+    {
+      "path": "assets/models/cash_register/receipt_paper.glb",
+      "sha256": "58a530de09b9477dca64b4a8ab1d37180026a934a41cf550785d0fdae5470a3e"
+    },
+    {
+      "path": "assets/models/takeaway_cup/coffee_shift_paper_cup_350ml.glb",
+      "sha256": "8cfe6d0b8d15821cb219c3f5e9909a5a1ec5ee58f11c79159393a051f4e18e61"
+    },
+    {
+      "path": "assets/models/takeaway_cup/coffee_shift_sip_lid_90mm.glb",
+      "sha256": "ee559fae956b6f4e2bae28879f3573090dc43100fcf9507853c46c7456bfe318"
+    }
+  ]
+}

@@ -26,6 +26,10 @@ func key(code: int, down: bool = true) -> void:
 	event.keycode = code
 	event.pressed = down
 	Input.parse_input_event(event)
+	# Input accumulates until the next rendered frame. Catch-up physics ticks
+	# alone can otherwise read the old state or deliver a press at the next aim.
+	Input.flush_buffered_events()
+	await process_frame
 	await frames()
 	if down: await key(code, false)
 
