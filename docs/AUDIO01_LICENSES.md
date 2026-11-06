@@ -13,7 +13,7 @@
 | radio_05_duduk.ogg | [desert_mus.ogg](https://github.com/Lelio88/dewdrop/blob/main/assets/audio/desert_mus.ogg) | Freesound #352572, duduk, CC0 по CREDITS.md |
 | radio_06_ambient_a.ogg | [aurora_mus_a.ogg](https://github.com/Lelio88/dewdrop/blob/main/assets/audio/aurora_mus_a.ogg) | Freesound #695587, ambient, CC0 по CREDITS.md |
 | radio_07_ambient_b.ogg | [aurora_mus_b.ogg](https://github.com/Lelio88/dewdrop/blob/main/assets/audio/aurora_mus_b.ogg) | Freesound #360352, ambient, CC0 по CREDITS.md |
-| radio_08_bossa.ogg | **Buy Something! (Shop Theme)**, Cleyton Kauffman — [original OGA CC0](https://opengameart.org/content/shop-theme). Re-encoded derivative from [xenitV1/mola](https://github.com/xenitV1/mola/blob/main/assets/vendor/Shop-Theme-SOURCE.md), SHA-256 67a97ef88addadbb12fd534d449b3e4606181b6378ca4191d6fb8ba65e9ddb6c; original source URL and conversion disclosed. |
+| radio_08_bossa.ogg | [Cleyton Kauffman — Buy Something! (Shop Theme)](https://opengameart.org/content/shop-theme); [published re-encode and source SHA](https://github.com/xenitV1/mola/blob/main/assets/vendor/Shop-Theme-SOURCE.md) | **CC0 1.0**, primary author submission verified 2026-11-06; re-encoded copy SHA-256 `67a97ef88addadbb12fd534d449b3e4606181b6378ca4191d6fb8ba65e9ddb6c` |
 | radio_09_ambient_space.ogg | [space_mus.ogg](https://github.com/Lelio88/dewdrop/blob/main/assets/audio/space_mus.ogg) | CC0 заявлен проектом, **первичный URL не указан — блокер релиза** |
 | radio_10_dreamy.ogg | [underwater_mus.ogg](https://github.com/Lelio88/dewdrop/blob/main/assets/audio/underwater_mus.ogg) | CC0 заявлен проектом, **первичный URL не указан — блокер релиза** |
 
@@ -43,7 +43,7 @@
 - Обе мелодии сгенерированы для Coffee Shift, внешних записей и чьих-либо лицензируемых сэмплов нет.
 
 ## Дополнительные прямые источники (6 ноября 2026)
-- [OpenGameArt: Shop Theme, CleytonKauffman](https://opengameart.org/content/shop-theme) — CC0, Bossa Nova. **Не включён в текущий набор**, пока не получен пригодный для Git файл и не проведена проверка звучания.
+- [OpenGameArt: Shop Theme, CleytonKauffman](https://opengameart.org/content/shop-theme) — CC0, Bossa Nova; **включён как radio_08_bossa.ogg** с зафиксированным происхождением и SHA-256. Слуховая оценка остаётся открытой.
 - [OpenGameArt: Bossa Nova, Joth](https://opengameart.org/content/bossa-nova) — CC0. **Не включён в текущий набор**.
 
 ## Public branch status — 2026-11-06

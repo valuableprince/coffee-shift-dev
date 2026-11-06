@@ -28,3 +28,10 @@ Dedicated workflow `.github/workflows/audio01-music.yml` performs structural che
 4. Before shipping on VK Play, confirm that each license/attribution included in `docs/AUDIO01_LICENSES.md` is legally adequate and redistribute relevant notices.
 
 **Integration status:** functional implementation candidate; passing CI alone does not close commercial-release blockers. Keep Draft PR pending acceptance and do not merge without instruction.
+
+## Verified CI status — 2026-11-06
+
+- [AUDIO-01 CI, PR run 42211536649](https://github.com/valuableprince/coffee-shift-dev/actions/runs/42211536649): **SUCCESS**. Python audio validation: 15/15; Godot 4.3 resource import successful; AUDIO-01 smoke **259 checks, 0 failures**; both real 3D scenes launched under Xvfb with GL Compatibility and no logged engine errors.
+- [Public Godot CI, PR run 42211536654](https://github.com/valuableprince/coffee-shift-dev/actions/runs/42211536654): **SUCCESS**. Domain test **773 checks, 0 failures**; career transactions **231 checks, 0 failures**; prototype music smoke passes both streams.
+- Initial CI failures on the earlier commit arose from running mesh-heavy 3D scenes with Godot's headless **dummy rendering backend** (`mesh_get_surface_count(m=null)`); the validation was corrected to Xvfb/GL, not suppressed.
+- Native Windows audio/GPU and listening were not tested. The MUSIC-24 provenance and MUSIC-25 mastering blockers remain explicitly open.
