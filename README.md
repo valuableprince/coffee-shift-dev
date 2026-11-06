@@ -25,6 +25,6 @@ Copyright in the original Coffee Shift code and artwork is retained by their res
 
 ## AUDIO-01 (development candidate)
 
-Spatial radio with ten actual OGG tracks (including CC0 Bossa Nova), menu/garage/end-of-shift themes, two original one-shot WAV cues, save-aware music events, focus mute, and 1.5-second crossfades. Interact with the radio using **E**. See [AUDIO-01 report](docs/AUDIO01_REPORT.md) and [music provenance](docs/AUDIO01_LICENSES.md). Two radio recordings still require primary-source license documentation and the MUSIC-25 audio delivery spec needs final compliance; this is not a commercial release-ready audio package.
+Spatial radio with ten actual OGG tracks (including CC0 Bossa Nova), menu/garage/end-of-shift themes, two original one-shot WAV cues, save-aware music events, focus mute, and 1.5-second crossfades. Interact with the radio using **E**. See [AUDIO-01 report](docs/AUDIO01_REPORT.md) and [music provenance](docs/AUDIO01_LICENSES.md). The three identified P0-risk radio tracks (#01, #09, #10) were replaced with traceable CC0 compositions and SHA-256 release guards; the remaining Freesound source chain, MUSIC-25 mastering and Windows listening still require acceptance before commercial release.
 
 Run `bash tools/ci/audio01_local.sh` with Godot 4.3 or review the dedicated AUDIO-01 CI workflow for automated checks.
