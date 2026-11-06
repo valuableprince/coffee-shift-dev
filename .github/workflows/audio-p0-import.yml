@@ -1,0 +1,59 @@
+name: One-time AUDIO-01 CC0 music import (P0)
+on:
+  push:
+    branches:
+      - fix/audio01-p0-license-clearance
+    paths:
+      - .github/workflows/audio-p0-import.yml
+permissions:
+  contents: write
+jobs:
+  import-verified-recordings:
+    if: github.repository == 'valuableprince/coffee-shift-dev'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout current P0 branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Download independently licensed CC0 originals and verify SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p assets/audio/music/radio
+          cd assets/audio/music/radio
+          # The actual publisher links are tried first. Immutable, pinned GitHub mirrors
+          # are fallback transport only. Unmatched bytes cannot enter git.
+          fetch_verified() {
+            local filename="$1" expected="$2" primary="$3" mirror="$4"
+            if [[ ! -f "$filename" ]]; then
+              if ! curl --fail --location --silent --show-error --retry 2 --connect-timeout 15 --max-time 180 --output "$filename" "$primary"; then
+                echo "Primary download unavailable for $filename, using pinned mirror" >&2
+                curl --fail --location --silent --show-error --retry 3 --connect-timeout 15 --max-time 180 --output "$filename" "$mirror"
+              fi
+            fi
+            printf '%s  %s\n' "$expected" "$filename" | sha256sum --check --status || {
+              echo "SHA-256 mismatch for $filename; aborting without publication" >&2
+              exit 1
+            }
+            echo "Verified $filename SHA-256=$expected"
+          }
+          fetch_verified "radio_09_sunset_walk.ogg" \
+            "1d230721e6200276065b913e44943d0e0503af88fc2dd793be1249738e06d98c" \
+            "https://opengameart.org/sites/default/files/SunsetWalk.ogg" \
+            "https://raw.githubusercontent.com/aaquino49/Zombie-Siege/f73aa122fdeb745acd8b4258b6b9221fe1846909/asset_library/audio/t029/SunsetWalk.ogg"
+          fetch_verified "radio_10_etirwer.ogg" \
+            "382c02bfb3d9abe1c9f432606dd95f27bcef28ac22097ccdcef12a8c608b421b" \
+            "https://opengameart.org/sites/default/files/Etirwer%20%28Looped%29_0.ogg" \
+            "https://raw.githubusercontent.com/norinori1/audio-selector/fc0d98e70c11d1f7afeba45e1a76def912e5176f/benchmark/media/oga-etirwer.ogg"
+          cd ../../../..
+          git add -- assets/audio/music/radio/radio_09_sunset_walk.ogg assets/audio/music/radio/radio_10_etirwer.ogg
+          if git diff --cached --quiet; then
+            echo "Verified recordings already present; no commit needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "assets(audio01): import two SHA256-verified CC0 originals"
+          git push origin HEAD:fix/audio01-p0-license-clearance
