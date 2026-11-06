@@ -33,6 +33,6 @@ Run `bash tools/ci/audio01_local.sh` with Godot 4.3 or review the dedicated AUDI
 
 Before each shift, aim at the coffee machine, grinder, fridge and register, then press **E — Осмотреть**. Each device has its own short first-person hand animation. Completed tasks fade and strike through in the text-only sidebar; the list folds away after all four checks. Open the serving window and use the shift switch to start service. Checks reset after successfully closing the shift.
 
-Esc or F6 cancels an unfinished inspection; completed checks survive career saves and loads. Checked equipment retains its normal recipe, milk-access and cash-drawer actions. See the [DEV-05 report and real Godot screenshots](docs/dev05/REPORT.md).
+Esc or F6 cancels an unfinished inspection; completed checks survive career saves and loads. Checked equipment retains its normal recipe, milk-access and cash-drawer actions. See the [DEV-05 report](docs/dev05/REPORT.md).
 
 Run `godot --headless --path . --script tests/dev05_inspection.gd -- --test-mode` after importing resources. Use GL Compatibility without `--headless` and add `--screenshots=/absolute/output/path` for real viewport evidence. Windows playtest remains part of PR acceptance.
