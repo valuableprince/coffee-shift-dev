@@ -1,0 +1,18 @@
+[gd_scene load_steps=2 format=3]
+[ext_resource type="PackedScene" path="res://assets/models/portafilter/coffee_shift_portafilter.glb" id="1_portafilter"]
+
+[node name="Portafilter" type="Node3D"]
+
+[node name="Model" parent="." instance=ExtResource("1_portafilter")]
+
+[node name="GroupLockOrigin" type="Marker3D" parent="."]
+position = Vector3(0, 0.012, 0)
+
+[node name="HandGrip" type="Marker3D" parent="."]
+position = Vector3(0, -0.001, 0.134)
+
+[node name="SpoutExitLeft" type="Marker3D" parent="."]
+position = Vector3(-0.02, -0.067, 0.013)
+
+[node name="SpoutExitRight" type="Marker3D" parent="."]
+position = Vector3(0.02, -0.067, 0.013)

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="1850" viewBox="0 0 720 1850">
+<title>Утренний луг — боковая сторона</title>
+<desc>Оригинальная графика для игры, информация на русском языке выводится средствами Godot.</desc>
+<defs><linearGradient id="paper" x1="0" y1="0" x2="1" y2="0">
+<stop stop-color="#e5d4b7"/><stop offset=".45" stop-color="#fcf1da"/><stop offset="1" stop-color="#e8d8c1"/>
+</linearGradient></defs>
+<rect width="720" height="1850" fill="url(#paper)"/>
+<rect width="720" height="330" fill="#2056a1"/>
+<path d="M0 320Q340 375 720 315" fill="none" stroke="#e8d2a6" stroke-width="17"/>
+<path d="M30 570H690M30 1135H690M30 1510H690" stroke="#a8b9cc" stroke-width="6"/>
+<path d="M0 1610Q350 1565 720 1620V1850H0Z" fill="#2f67a9"/>
+<path d="M0 1607Q300 1543 720 1615" fill="none" stroke="#f7ddac" stroke-width="17"/>
+</svg>

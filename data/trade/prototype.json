@@ -1,0 +1,25 @@
+{
+  "schema": 2,
+  "location": "city_square_01",
+  "clock_start": 32400,
+  "clock_scale": 10,
+  "stock": {"coffee": 3000, "milk": 20000, "water": 60000, "sugar": 300, "syrup": 3000, "cups_small": 60, "cups_standard": 100, "cups_large": 80, "lids_small": 60, "lids_standard": 100, "lids_large": 80, "carriers": 80},
+  "unit_cost_kopecks": {"coffee": 100, "milk": 6, "water": 1, "sugar": 50, "syrup": 15, "cups_small": 200, "cups_standard": 300, "cups_large": 400, "lids_small": 100, "lids_standard": 100, "lids_large": 100, "carriers": 500},
+  "till": {"1000": 1, "500": 2, "100": 12, "50": 12, "10": 40, "5": 20, "2": 30, "1": 40},
+  "customers": {"interval_seconds": 45, "max_present": 6, "patience_seconds": 900, "walk_speed": 1.1,
+    "profiles": [
+      {"name": "Офисник", "color": "536f75", "preferred": ["americano_standard", "cappuccino_large"], "greeting": "Здравствуйте! Мне, пожалуйста, "},
+      {"name": "Студент", "color": "ab7350", "preferred": ["latte_standard", "espresso_small"], "greeting": "Добрый день! Можно "},
+      {"name": "Горожанка", "color": "71815b", "preferred": ["cappuccino_standard", "latte_large"], "greeting": "Здравствуйте! Возьму "}
+    ]},
+  "points": {"spawn": [10, 0, -7], "queue": [2.6, 0, 0], "counter": [1.9, 0, 0], "waiting": [3.7, 0, 2.6], "exit": [12, 0, 7]},
+  "recipes": {
+    "espresso_small": {"drink": "espresso", "name": "Эспрессо", "size": "маленький", "ml": 40, "price": 60, "ingredients": {"coffee": 9, "water": 40, "cups_small": 1, "lids_small": 1}, "steps": ["beans", "grind", "filter", "dose", "install", "cup", "extract", "stop", "lid", "place"], "extraction": [8, 12]},
+    "americano_standard": {"drink": "americano", "name": "Американо", "size": "стандартный", "ml": 200, "price": 80, "ingredients": {"coffee": 9, "water": 200, "cups_standard": 1, "lids_standard": 1}, "steps": ["beans", "grind", "filter", "dose", "install", "cup", "extract", "stop", "water", "lid", "place"], "extraction": [8, 12]},
+    "americano_large": {"drink": "americano", "name": "Американо", "size": "большой", "ml": 300, "price": 100, "ingredients": {"coffee": 18, "water": 300, "cups_large": 1, "lids_large": 1}, "steps": ["beans", "grind", "filter", "dose", "install", "cup", "extract", "stop", "water", "lid", "place"], "extraction": [8, 12]},
+    "cappuccino_standard": {"drink": "cappuccino", "name": "Капучино", "size": "стандартный", "ml": 200, "price": 100, "ingredients": {"coffee": 9, "water": 40, "milk": 160, "cups_standard": 1, "lids_standard": 1}, "steps": ["beans", "grind", "filter", "dose", "install", "cup", "extract", "stop", "milk", "pitcher", "steam", "stop_steam", "pour", "lid", "place"], "extraction": [8, 12], "foam": [4, 7]},
+    "cappuccino_large": {"drink": "cappuccino", "name": "Капучино", "size": "большой", "ml": 300, "price": 130, "ingredients": {"coffee": 18, "water": 60, "milk": 240, "cups_large": 1, "lids_large": 1}, "steps": ["beans", "grind", "filter", "dose", "install", "cup", "extract", "stop", "milk", "pitcher", "steam", "stop_steam", "pour", "lid", "place"], "extraction": [8, 12], "foam": [4, 7]},
+    "latte_standard": {"drink": "latte", "name": "Латте", "size": "стандартный", "ml": 250, "price": 110, "ingredients": {"coffee": 9, "water": 40, "milk": 210, "cups_standard": 1, "lids_standard": 1}, "steps": ["beans", "grind", "filter", "dose", "install", "cup", "extract", "stop", "milk", "pitcher", "steam", "stop_steam", "pour", "lid", "place"], "extraction": [8, 12], "foam": [2, 4]},
+    "latte_large": {"drink": "latte", "name": "Латте", "size": "большой", "ml": 350, "price": 140, "ingredients": {"coffee": 18, "water": 60, "milk": 290, "cups_large": 1, "lids_large": 1}, "steps": ["beans", "grind", "filter", "dose", "install", "cup", "extract", "stop", "milk", "pitcher", "steam", "stop_steam", "pour", "lid", "place"], "extraction": [8, 12], "foam": [2, 4]}
+  }
+}

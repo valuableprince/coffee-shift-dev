@@ -1,0 +1,57 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://assets/models/cabinets/cabinet_controller.gd" id="1_controller"]
+[ext_resource type="Script" path="res://assets/models/cabinets/cabinet_door_interactable.gd" id="2_door"]
+[ext_resource type="PackedScene" path="res://assets/models/cabinets/base_cabinet_body.glb" id="3_body"]
+[ext_resource type="PackedScene" path="res://assets/models/cabinets/base_cabinet_door_left.glb" id="4_left"]
+[ext_resource type="PackedScene" path="res://assets/models/cabinets/base_cabinet_door_right.glb" id="5_right"]
+
+[sub_resource type="BoxShape3D" id="BodyCollision"]
+size = Vector3(1.08, 0.82, 0.6)
+
+[sub_resource type="BoxShape3D" id="LeafCollision"]
+size = Vector3(0.499, 0.675, 0.038)
+
+[node name="BaseCabinetDoubleDoor" type="Node3D"]
+script = ExtResource("1_controller")
+display_name = "нижний шкафчик"
+
+[node name="BodyVisual" parent="." instance=ExtResource("3_body")]
+
+[node name="BodyCollider" type="StaticBody3D" parent="."]
+collision_layer = 1
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="BodyCollider"]
+position = Vector3(0, 0.41, -0.3)
+shape = SubResource("BodyCollision")
+
+[node name="LeftHinge" type="Node3D" parent="."]
+position = Vector3(-0.52, 0, 0.020)
+
+[node name="DoorVisual" parent="LeftHinge" instance=ExtResource("4_left")]
+
+[node name="DoorInteractable" type="StaticBody3D" parent="LeftHinge"]
+script = ExtResource("2_door")
+side = "left"
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="LeftHinge/DoorInteractable"]
+position = Vector3(0.2545, 0.4375, 0.002)
+shape = SubResource("LeafCollision")
+
+[node name="RightHinge" type="Node3D" parent="."]
+position = Vector3(0.52, 0, 0.020)
+
+[node name="DoorVisual" parent="RightHinge" instance=ExtResource("5_right")]
+
+[node name="DoorInteractable" type="StaticBody3D" parent="RightHinge"]
+script = ExtResource("2_door")
+side = "right"
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="RightHinge/DoorInteractable"]
+position = Vector3(-0.2545, 0.4375, 0.002)
+shape = SubResource("LeafCollision")

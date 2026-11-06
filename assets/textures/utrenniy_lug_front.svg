@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="750" height="1850" viewBox="0 0 750 1850">
+<title>Утренний луг — молоко 3,2%, лицевая сторона</title>
+<desc>Оригинальная графика для Coffee Shift, кириллические надписи выводятся средствами Godot.</desc>
+<defs>
+ <linearGradient id="paper" x1="0" y1="0" x2="1" y2="0">
+ <stop stop-color="#f0dfc5"/><stop offset=".4" stop-color="#fff1d9"/><stop offset="1" stop-color="#e3d1b2"/>
+ </linearGradient>
+ <linearGradient id="field" x1="0" y1="0" x2="0" y2="1">
+ <stop stop-color="#a1b06a"/><stop offset="1" stop-color="#467039"/>
+ </linearGradient>
+</defs>
+<rect width="750" height="1850" fill="url(#paper)"/>
+<path d="M0 0H750V380Q422 450 0 350Z" fill="#2359a9"/>
+<path d="M0 350Q430 455 750 380" fill="none" stroke="#f1d4a7" stroke-width="18"/>
+<path d="M0 467Q345 510 750 445" fill="none" stroke="#94b7cf" stroke-width="22" opacity=".6"/>
+<path d="M60 565Q380 510 690 565V1175Q389 1220 60 1175Z" fill="#f7ead4" opacity=".8"/>
+<path d="M0 1200Q210 1120 395 1200Q560 1135 750 1230V1850H0Z" fill="#a9bf79"/>
+<path d="M0 1280Q180 1180 365 1270Q548 1170 750 1310V1850H0Z" fill="#6b9658"/>
+<path d="M0 1440Q330 1320 750 1430V1850H0Z" fill="url(#field)"/>
+<path d="M0 1315L95 1232 184 1290 273 1208 367 1270 469 1197 562 1274 673 1180 750 1265" fill="none" stroke="#b4c7cb" stroke-width="24"/>
+<path d="M0 1450Q125 1380 235 1435Q330 1390 456 1442Q590 1403 750 1465" fill="none" stroke="#426744" stroke-width="30"/>
+<!-- Original cow illustration drawn from vector primitives -->
+<path d="M220 1578Q210 1544 226 1520Q246 1490 297 1496H425Q485 1503 494 1547L475 1628H445L432 1690H409L406 1628H318L298 1692H274L278 1615L252 1605Z" fill="#f5f2e4" stroke="#585043" stroke-width="10"/>
+<path d="M258 1518Q279 1496 308 1519L318 1571Q292 1586 272 1565ZM382 1500Q435 1518 422 1566L388 1581L370 1542Z" fill="#413c35"/>
+<path d="M480 1516L529 1512Q555 1521 552 1552L542 1589L520 1604L505 1577L489 1567Z" fill="#f5f2e4" stroke="#585043" stroke-width="9"/>
+<path d="M518 1522Q540 1543 526 1555" fill="none" stroke="#413c35" stroke-width="12"/>
+<path d="M476 1525Q469 1509 479 1495M215 1536Q178 1560 193 1601" fill="none" stroke="#423b35" stroke-width="8"/>
+<path d="M0 1705Q300 1668 750 1715V1850H0Z" fill="#3164aa"/>
+<path d="M0 1707Q380 1655 750 1700" fill="none" stroke="#ead5ac" stroke-width="18"/>
+<g fill="#eddbb9">
+<circle cx="90" cy="1600" r="6"/><circle cx="149" cy="1645" r="5"/>
+<circle cx="600" cy="1635" r="7"/><circle cx="672" cy="1601" r="6"/>
+</g>
+</svg>

@@ -1,0 +1,75 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/models/sink_mixer/sink_with_mixer.tscn" id="1_sink"]
+[ext_resource type="Script" path="res://assets/models/sink_mixer/preview.gd" id="2_script"]
+
+[sub_resource type="BoxMesh" id="CounterPlank"]
+size = Vector3(1, 0.04, 1)
+
+[sub_resource type="StandardMaterial3D" id="WoodMaterial"]
+albedo_color = Color(0.54, 0.45, 0.34, 1)
+roughness = 0.9
+
+[sub_resource type="Environment" id="PreviewWorld"]
+background_mode = 1
+background_color = Color(0.16, 0.19, 0.20, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.82, 0.82, 0.78, 1)
+ambient_light_energy = 0.65
+
+[node name="SinkAssetPreview" type="Node3D"]
+script = ExtResource("2_script")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("PreviewWorld")
+
+[node name="Sink" parent="." instance=ExtResource("1_sink")]
+
+[node name="LeftCounter" type="MeshInstance3D" parent="."]
+position = Vector3(-0.46, -0.025, 0)
+scale = Vector3(0.48, 1, 0.72)
+mesh = SubResource("CounterPlank")
+material_override = SubResource("WoodMaterial")
+
+[node name="RightCounter" type="MeshInstance3D" parent="."]
+position = Vector3(0.46, -0.025, 0)
+scale = Vector3(0.48, 1, 0.72)
+mesh = SubResource("CounterPlank")
+material_override = SubResource("WoodMaterial")
+
+[node name="BackCounter" type="MeshInstance3D" parent="."]
+position = Vector3(0, -0.025, -0.30)
+scale = Vector3(0.44, 1, 0.12)
+mesh = SubResource("CounterPlank")
+material_override = SubResource("WoodMaterial")
+
+[node name="FrontCounter" type="MeshInstance3D" parent="."]
+position = Vector3(0, -0.025, 0.30)
+scale = Vector3(0.44, 1, 0.12)
+mesh = SubResource("CounterPlank")
+material_override = SubResource("WoodMaterial")
+
+[node name="Camera" type="Camera3D" parent="."]
+position = Vector3(0.55, 0.43, 0.68)
+fov = 55
+current = true
+
+[node name="KeyLight" type="DirectionalLight3D" parent="."]
+rotation = Vector3(-0.83, 0.40, 0.10)
+light_color = Color(1, 0.95, 0.84, 1)
+light_energy = 1.3
+
+[node name="FillLight" type="OmniLight3D" parent="."]
+position = Vector3(-0.55, 0.62, 0.41)
+omni_range = 2.5
+light_energy = 0.60
+light_color = Color(0.79, 0.87, 0.97, 1)
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="Help" type="Label" parent="UI"]
+offset_left = 18.0
+offset_top = 18.0
+offset_right = 780.0
+offset_bottom = 52.0
+text = "Enter / Space — повернуть рычаг смесителя"
