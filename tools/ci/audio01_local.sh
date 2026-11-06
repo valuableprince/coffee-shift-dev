@@ -21,9 +21,20 @@ python3 tools/ci/check_audio_assets.py | tee "$OUT/assets.log"
 export GODOT_SILENCE_ROOT_WARNING=1
 "$ENGINE" --headless --path . --editor --import --quit 2>&1 | tee "$OUT/import.log"
 "$ENGINE" --headless --audio-driver Dummy --path . --script tests/audio01_smoke.gd -- --test-mode 2>&1 | tee "$OUT/smoke.log"
+# Real GL Compatibility rendering is required for 3D mesh resources.
+# --headless selects Godot's dummy renderer and can emit thousands of
+# mesh_get_surface_count(m=null) errors unrelated to AUDIO-01.
+if command -v xvfb-run >/dev/null 2>&1; then
+  DISPLAY_RUN=(xvfb-run -a)
+elif [[ -n "${DISPLAY:-}" || "${OSTYPE:-}" == msys* || "${OSTYPE:-}" == cygwin* ]]; then
+  DISPLAY_RUN=()
+else
+  echo "No display available: install xvfb/xauth, or run with a real display." >&2
+  exit 127
+fi
 for scene in scenes/first_shift.tscn scenes/main.tscn; do
   name="$(basename "$scene" .tscn)"
-  "$ENGINE" --headless --audio-driver Dummy --path . --quit-after 12 "$scene" -- --test-mode 2>&1 | tee "$OUT/$name.log"
+  "${DISPLAY_RUN[@]}" "$ENGINE" --audio-driver Dummy --path . --rendering-method gl_compatibility --quit-after 90 "$scene" -- --test-mode 2>&1 | tee "$OUT/$name.log"
 done
 if grep -Ein 'SCRIPT ERROR|Parse Error|ERROR:|FAIL AUDIO-01:' "$OUT"/import.log "$OUT"/smoke.log "$OUT"/first_shift.log "$OUT"/main.log; then
   echo "Godot reported errors. See AUDIO01_LOG_DIR for evidence." >&2
