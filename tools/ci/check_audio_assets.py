@@ -12,6 +12,16 @@ RADIO = tuple(sorted((DIR / "radio").glob("*.ogg")))
 OGGS = RADIO + tuple(DIR / n for n in ("menu.ogg", "garage.ogg", "day_end.ogg"))
 WAVS = (("opening_sting.wav", 7.5), ("achievement_sting.wav", 3.3))
 
+# P0: these verified CC0 tracks replace untraceable or composition-risk recordings.
+# Verify byte identity before Godot import. Unexpected old files are forbidden.
+P0_HASHES = {
+    "radio_01_jazz_improv.ogg": "e0125d6efee5cec8c5c10745ed884530e42c33bde36922ea880df3c1d22220dd",
+    "radio_09_sunset_walk.ogg": "1d230721e6200276065b913e44943d0e0503af88fc2dd793be1249738e06d98c",
+    "radio_10_etirwer.ogg": "382c02bfb3d9abe1c9f432606dd95f27bcef28ac22097ccdcef12a8c608b421b",
+}
+BANNED_P0_NAMES = ("radio_01_jazz.ogg", "radio_09_ambient_space.ogg", "radio_10_dreamy.ogg")
+
+
 
 def check_ogg(path):
     data = path.read_bytes()
@@ -49,6 +59,17 @@ def main():
     errors = []
     if len(RADIO) != 10:
         errors.append(f"expected 10 radio OGGs, found {len(RADIO)}")
+    for forbidden in BANNED_P0_NAMES:
+        if (DIR / "radio" / forbidden).exists():
+            errors.append(f"P0 prohibited file present: {forbidden}")
+    for filename, expected_hash in P0_HASHES.items():
+        candidate = DIR / "radio" / filename
+        if not candidate.is_file():
+            errors.append(f"P0 licensed track missing: {filename}")
+            continue
+        actual_hash = hashlib.sha256(candidate.read_bytes()).hexdigest()
+        if actual_hash != expected_hash:
+            errors.append(f"P0 SHA-256 mismatch: {filename}; expected {expected_hash}, got {actual_hash}")
     for path in OGGS:
         try:
             check_ogg(path)

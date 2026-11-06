@@ -5,7 +5,7 @@ on:
   pull_request:
     branches: [main, feat/public-bootstrap-20261106]
   push:
-    branches: [feat/audio01-music-integration]
+    branches: [main, feat/audio01-music-integration, fix/audio01-p0-license-clearance]
 
 permissions:
   contents: read

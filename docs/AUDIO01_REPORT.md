@@ -22,7 +22,7 @@ Dedicated workflow `.github/workflows/audio01-music.yml` performs structural che
 
 ## Release blockers / remaining QA
 
-1. Two radio tracks (`radio_09_ambient_space.ogg`, `radio_10_dreamy.ogg`) retain only a secondary CC0 assertion; find primary evidence or replace before commercial distribution.
+1. **P0 addressed on 06.11.2026:** source-untraceable radio #09/#10 and possible underlying composition risk in previous radio #01 removed and replaced by directly authored CC0 selections with SHA-256 pinned. The remaining radio #02–07 Freesound entries still merit a final source/derivative audit.
 2. Final MUSIC-25 audio master checks: target 44.1 kHz stereo / 160–192 kbps, measured loudness and peak, seamless loops; re-encoding source material requires listening review and does not improve inherent source quality.
 3. Native Windows Godot playback, radio attenuation/interaction in the scene, Alt+Tab behavior, subjective genre balance, audible transition seams and audio levels.
 4. Before shipping on VK Play, confirm that each license/attribution included in `docs/AUDIO01_LICENSES.md` is legally adequate and redistribute relevant notices.
@@ -34,4 +34,12 @@ Dedicated workflow `.github/workflows/audio01-music.yml` performs structural che
 - [AUDIO-01 CI, PR run 42211536649](https://github.com/valuableprince/coffee-shift-dev/actions/runs/42211536649): **SUCCESS**. Python audio validation: 15/15; Godot 4.3 resource import successful; AUDIO-01 smoke **259 checks, 0 failures**; both real 3D scenes launched under Xvfb with GL Compatibility and no logged engine errors.
 - [Public Godot CI, PR run 42211536654](https://github.com/valuableprince/coffee-shift-dev/actions/runs/42211536654): **SUCCESS**. Domain test **773 checks, 0 failures**; career transactions **231 checks, 0 failures**; prototype music smoke passes both streams.
 - Initial CI failures on the earlier commit arose from running mesh-heavy 3D scenes with Godot's headless **dummy rendering backend** (`mesh_get_surface_count(m=null)`); the validation was corrected to Xvfb/GL, not suppressed.
-- Native Windows audio/GPU and listening were not tested. The MUSIC-24 provenance and MUSIC-25 mastering blockers remain explicitly open.
+- Native Windows audio/GPU and listening were not tested. The P0 replacement candidate is documented separately; MUSIC-25 mastering, full catalog provenance and Windows listening are still open.
+
+## P0 license clearance record — 2026-11-06
+
+- **01:** Replaced `radio_01_jazz.ogg` (Freesound #770969 openly describes a performance of `Blue in Green`, raising underlying composition-rights uncertainty) with `radio_01_jazz_improv.ogg`, author Alex McCulloch's *Jazz Improvisation (Looped)*, original author source [OpenGameArt](https://opengameart.org/content/jazz-improvisation-looped) CC0 and traceable derivative [Deadwood Reblooms asset library](https://github.com/MaplebirchLeaf/Deadwood-Reblooms/blob/29a343a208f5df6f504167fcf32d9ef13835457f/audio-pack/audio/assets.json). SHA-256 `e0125d6efee5cec8c5c10745ed884530e42c33bde36922ea880df3c1d22220dd`.
+- **09:** Replaced `radio_09_ambient_space.ogg` with KiluaBoy's *Sunset Walk*, original author CC0 [OpenGameArt page](https://opengameart.org/content/sunset-walk-ambient-quiet-sweet-loop), SHA-256 `1d230721e6200276065b913e44943d0e0503af88fc2dd793be1249738e06d98c`.
+- **10:** Replaced `radio_10_dreamy.ogg` with Kistol's original *Etirwer (Looped)*, CC0 [OpenGameArt page](https://opengameart.org/content/etirwer) and original-asset [evidence manifest](https://github.com/norinori1/audio-selector/blob/fc0d98e70c11d1f7afeba45e1a76def912e5176f/benchmark/manifest.json), SHA-256 `382c02bfb3d9abe1c9f432606dd95f27bcef28ac22097ccdcef12a8c608b421b`.
+- Source bytes fetched in narrow, temporary GitHub Actions workflow and compared by SHA-256 before publication. Workflow removed from release candidate; byte-check and banned old names persist in `tools/ci/check_audio_assets.py`.
+- **Remaining QA:** remaining #02–07 Freesound original metadata and derivatives, MUSIC-25 music mastering, real Windows listening and final redistribution/credit package are **not** claimed complete.

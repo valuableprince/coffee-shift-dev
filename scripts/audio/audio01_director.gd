@@ -4,7 +4,7 @@ extends PrototypeMusic
 ## Extends PrototypeMusic only to preserve existing saved settings and test APIs.
 
 const RADIO_PATHS := [
-	"res://assets/audio/music/radio/radio_01_jazz.ogg",
+	"res://assets/audio/music/radio/radio_01_jazz_improv.ogg",
 	"res://assets/audio/music/radio/radio_02_vibraphone.ogg",
 	"res://assets/audio/music/radio/radio_03_acoustic.ogg",
 	"res://assets/audio/music/radio/radio_04_harp.ogg",
@@ -12,8 +12,8 @@ const RADIO_PATHS := [
 	"res://assets/audio/music/radio/radio_06_ambient_a.ogg",
 	"res://assets/audio/music/radio/radio_07_ambient_b.ogg",
 	"res://assets/audio/music/radio/radio_08_bossa.ogg",
-	"res://assets/audio/music/radio/radio_09_ambient_space.ogg",
-	"res://assets/audio/music/radio/radio_10_dreamy.ogg",
+	"res://assets/audio/music/radio/radio_09_sunset_walk.ogg",
+	"res://assets/audio/music/radio/radio_10_etirwer.ogg",
 ]
 const THEMES := {
 	"menu": "res://assets/audio/music/menu.ogg",

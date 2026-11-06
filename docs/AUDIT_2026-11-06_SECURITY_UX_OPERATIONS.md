@@ -51,3 +51,7 @@
 
 ## Ограничения заключения
 Результаты CI подтверждают только конкретные запущенные сценарии на Linux Godot 4.3. Нельзя называть игру полностью протестированной, коммерчески готовой, свободной от уязвимостей или гарантированно работоспособной в Windows без самостоятельной приёмки. Аудит **не меняет** игровой код, ресурсы и приватный репозиторий.
+
+## P0 follow-up — 06.11.2026
+
+In branch `fix/audio01-p0-license-clearance`, identified license risks from former radio #09/#10 and an additional composition-rights concern with former radio #01 (Freesound #770969, *Blue in Green*) were addressed by source-verified, hash-pinned original CC0 music. The original 3 files are removed from the public project. This amends the known P0 findings but does **not** certify all other Freesound source claims, musical mastering or Windows release QA. See `docs/AUDIO01_LICENSES.md` and the CI checksum guard for verified SHA-256 and author links.
