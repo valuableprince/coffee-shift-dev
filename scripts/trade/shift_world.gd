@@ -21,7 +21,7 @@ var main_menu: CoffeeShiftMainMenu
 var save_manager: ShiftSaveManager
 var save_menu: RestorationSaveMenu
 var game_settings := CoffeeShiftSettings.new()
-var music: PrototypeMusic
+var music: Audio01Director
 var audio: ShiftAudio
 var stations: Dictionary = {}
 var shutter: Node3D
@@ -74,8 +74,9 @@ func _ready() -> void:
 	npc_root = Node3D.new()
 	npc_root.name = "Customers"
 	add_child(npc_root)
-	music = PrototypeMusic.new()
+	music = Audio01Director.new()
 	add_child(music)
+	music.attach_radio(trailer, Vector3(-.77, 1.49, 1.49))
 	audio = ShiftAudio.new()
 	add_child(audio)
 	var graphics := CoffeeShiftGraphics.new()
@@ -244,6 +245,11 @@ func _build_stations() -> void:
 	_station("carrier", "Держатель", Vector3(-.51, 1.43, .08))
 	_station("bin", "Мусорное ведро", Vector3(-.44, .85, 1.93), Vector3(.08, .25, .20))
 	_station("menu", "Меню / цены / запасы", Vector3(-.52, 1.95, -1.45), Vector3(.08, .28, .30))
+	# Physical receiver at the rear counter, separate from the scene background music.
+	_station("radio", "Радиоприёмник", Vector3(-.51, 1.49, 1.49), Vector3(.11, .19, .27))
+	G.box(trailer, "RadioCase", Vector3(-.77, 1.49, 1.49), Vector3(.28, .24, .31), Color("5d6357"), false)
+	G.box(trailer, "RadioSpeakerGrille", Vector3(-.62, 1.49, 1.42), Vector3(.012, .16, .13), Color("313a35"), false)
+	G.box(trailer, "RadioTuningDial", Vector3(-.62, 1.50, 1.59), Vector3(.013, .08, .08), Color("c1b588"), false)
 	G.cylinder(trailer, "SugarBowl", Vector3(-.78, 1.38, 1.03), .075, .16, Color("c7c5ab"), false)
 	G.cylinder(trailer, "SyrupBottle", Vector3(-.78, 1.46, .38), .044, .32, Color("8b784e"), false)
 	G.cylinder(trailer, "Bin", Vector3(-.72, .68, 1.94), .18, .50, Color("526358"), false)
@@ -265,6 +271,8 @@ func _build_stations() -> void:
 
 func _refresh() -> void:
 	if hud == null: return
+	if _active and music != null and int(session.stats.sold) > 0 and music.play_achievement_once("first_sale"):
+		save_manager.mark_checkpoint("Достижение: первая продажа")
 	TradingLocation.update_lighting(self, session.clock)
 	_sync_process_audio()
 	_sync_fridge()
@@ -415,6 +423,7 @@ func station_available_action(station: ShiftWorkstation) -> String:
 		if accessories.inspected == "": return "[E] Взять"
 		return "Сначала верните предмет"
 	match station.action:
+		"radio": return "[E] Выключить радио" if music.radio_on else "[E] Включить радио"
 		"fridge":
 			if fridge.moving: return "Открывается…" if fridge.opened else "Закрывается…"
 			return "[E] Закрыть" if fridge.opened else "[E] Открыть"
@@ -465,6 +474,9 @@ func interact_station(station: ShiftWorkstation) -> void:
 		accessories.take_or_return(action)
 		return
 	match action:
+		"radio":
+			music.toggle_radio()
+			save_manager.mark_checkpoint("Состояние радио")
 		"window": session.toggle_window()
 		"shift": show_shift()
 		"counter": show_customer()
@@ -546,8 +558,16 @@ func show_shift() -> void:
 func _toggle_shift() -> void:
 	var closing := session.shift_open
 	var ok := session.close_shift() if closing else session.open_shift()
-	if ok and closing: show_report()
-	elif ok: hud.close_panel()
+	if ok and closing:
+		music.set_context("day_end")
+		if session.report().profit > 0 and music.play_achievement_once("first_profitable_shift"):
+			save_manager.mark_checkpoint("Достижение: первая прибыль")
+		show_report()
+	elif ok:
+		music.set_context("trade")
+		if music.play_opening_once():
+			save_manager.mark_checkpoint("Первая смена: музыкальная заставка")
+		hud.close_panel()
 	else: _panel("СМЕНА", session.last_message, [{"label": "Вернуться к подготовке", "call": hud.close_panel}])
 
 func _pickup_at_counter() -> Dictionary:
@@ -661,11 +681,12 @@ func capture_snapshot() -> Dictionary:
 	return {"trade": session.snapshot(), "world": {"position": [player.position.x, player.position.y, player.position.z],
 		"yaw": player.rotation.y, "pitch": player.pitch,
 		"fridge_opened": fridge.opened, "staff_door_opened": trailer.get_node("StaffDoor").opened,
-		"assets": new_assets.snapshot()}}
+		"assets": new_assets.snapshot(), "audio": music.snapshot_audio()}}
 
 func validate_snapshot(data: Dictionary) -> bool:
 	if not data.get("trade") is Dictionary or not session.validate(data.trade) or not data.get("world") is Dictionary: return false
 	var w: Dictionary = data.world
+	if w.has("audio") and (not w.audio is Dictionary or not music.validate_audio(w.audio)): return false
 	if w.has("assets") and not new_assets.valid_snapshot(w.assets): return false
 	if not CoffeeShiftSession._valid_point(w.get("position")): return false
 	for key in ["fridge_opened","staff_door_opened"]:
@@ -677,6 +698,7 @@ func validate_snapshot(data: Dictionary) -> bool:
 func apply_snapshot(data: Dictionary) -> bool:
 	if not validate_snapshot(data): return false
 	if not session.restore(data.trade): return false
+	music.restore_audio(data.world.get("audio", {}))
 	# Cancel any in-flight animation and restore the authoritative saved window immediately.
 	_shutter_open = session.window_open
 	trailer.shell.set_hatch_open(_shutter_open, false)
@@ -763,6 +785,7 @@ func show_title() -> void:
 	player.set_mouse_capture(false)
 	save_manager.autosave_enabled = false
 	main_menu.show_title()
+	music.set_context("menu")
 	_sync_process_audio()
 
 func show_pause() -> void:
@@ -784,6 +807,7 @@ func resume_game() -> void:
 	hud.panel.hide()
 	save_menu.hide()
 	_active = true
+	music.set_context("trade")
 	save_manager.autosave_enabled = not _test
 	_resume_controls()
 
@@ -829,8 +853,7 @@ func quit_game() -> void:
 		main_menu.show_error("Не удалось сохранить прогресс; выход отменён")
 		return
 	audio.stop_all()
-	music._player.stop()
-	music._player.stream = null
+	music.stop_all()
 	await get_tree().process_frame
 	get_tree().quit()
 
