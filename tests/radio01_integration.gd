@@ -65,6 +65,7 @@ func run() -> void:
 	var directory := level.save_manager.directory
 	level.music.stop_all()
 	level.audio.stop_all()
+	await create_timer(.2).timeout
 	level.free()
 	await frames(3)
 	level = load("res://scenes/first_shift.tscn").instantiate()
@@ -97,6 +98,7 @@ func run() -> void:
 	level.save_manager.autosave_enabled = false
 	level.music.stop_all()
 	level.audio.stop_all()
+	await create_timer(.2).timeout
 	level.free()
 	await frames(3)
 	print("RADIO-01: %d checks, %d failures" % [checks, failures])
@@ -116,5 +118,8 @@ func missing_audio() -> void:
 	director._advance_radio()
 	check(director.radio_index == 2 and director._radio.playing, "T09: missing tracks skipped to next approved playable track")
 	director.stop_all()
+	# AudioServer owns playback references until the mixer handles stop().
+	# Allow that real-time handoff before freeing the spatial speaker and tree.
+	await create_timer(.2).timeout
 	director.free()
 	anchor.free()
