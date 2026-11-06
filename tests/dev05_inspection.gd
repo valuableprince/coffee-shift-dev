@@ -12,7 +12,9 @@ func capture(name: String) -> void:
 
 func begin_inspection(id: String) -> void:
 	var target: Node3D = level.stations[id]
-	await aim(target.global_position,Vector3(0,.4,clampf(target.global_position.z,-2.1,2.0)))
+	var standing := Vector3(.08 if target.global_position.x > 0 else -.08,.4,clampf(target.global_position.z,-2.1,2.0))
+	if id == "fridge" and level.fridge.opened: standing = Vector3(-.12,.4,0)
+	await aim(target.global_position,standing)
 	check(level.player.get_interactable() == target,"physical ray reaches " + id)
 	check(target.get_prompt().ends_with("[E] Осмотреть"),"uninspected device offers E inspection: " + id)
 	await key(KEY_E)
@@ -21,10 +23,14 @@ func begin_inspection(id: String) -> void:
 
 func inspect(id: String, photograph: bool = false) -> void:
 	var money := JSON.stringify(level.session.cash.till)
+	var camera_home := level.player.camera.position
 	await begin_inspection(id)
 	if photograph:
 		await create_timer(.40).timeout
 		check(level.inspection.hand.visible and level.inspection.animation.is_playing(),"real clip visible: " + id)
+		var arm := level.inspection
+		check(arm.elbow_point.distance_to(arm.wrist_point) >= .25 and arm.elbow_point.distance_to(arm.wrist_point) <= .27,"forearm stays human-sized at contact: " + id)
+		check(arm.hand.get_node("Sleeve").global_basis.get_scale().is_equal_approx(Vector3.ONE),"forearm mesh is never stretched: " + id)
 		await capture("animation-" + id)
 	# A held/repeated E cannot start another transaction, even on another device.
 	await key(KEY_E)
@@ -35,6 +41,7 @@ func inspect(id: String, photograph: bool = false) -> void:
 	check(level.hud.tasks.rows[id].completed,"HUD observes completed " + id)
 	check(level.player.controls_enabled and level.player.mouse_captured,"controls restored after " + id)
 	check(not level.inspection.hand.visible,"inspection hand holstered after " + id)
+	check(level.player.camera.position.is_equal_approx(camera_home) and level.player.camera.rotation.is_equal_approx(Vector3(level.player.pitch,0,0)),"inspection restores camera position and view: " + id)
 	check(JSON.stringify(level.session.cash.till) == money and level.session.cash.payment.is_empty(),"inspection creates no transaction")
 
 func check_layout() -> void:
@@ -66,6 +73,10 @@ func run() -> void:
 	root.size = Vector2i(1920,1080)
 	await frames(4)
 	check(not level.session.open_shift(),"four inspections gate opening")
+	await aim(level.stations.machine.global_position,Vector3(-.1,.4,-.2))
+	check(level.stations.machine.get_prompt().ends_with("Подойдите ближе"),"distant device asks player to approach")
+	level.interact_station(level.stations.machine)
+	check(not level.inspection.busy and not level.session.equipment.machine and level.player.controls_enabled,"unreachable inspection cannot stretch or complete")
 	await inspect("machine",true)
 	await frames(24)
 	check(is_equal_approx(level.hud.tasks.rows.machine.progress,1),"completed task has full drawn strike")
@@ -96,7 +107,9 @@ func run() -> void:
 	check(is_equal_approx(level.fridge.hinge.rotation.y,-ShiftFridge.OPEN_ANGLE),"already-open fridge keeps its starting angle")
 	level.inspection.cancel()
 	check(level.fridge.opened and not level.fridge.moving,"cancel restores originally open door")
-	level.fridge.restore_opened(false)
+	await inspect("fridge")
+	check(not level.fridge.opened,"already-open fridge inspection finishes with a closed door")
+	check(level.save_manager.load_slot(1,"manual",1),"restore partial preparation after open-door regression")
 	# Escape, F6, focus loss and an external AnimationPlayer stop cancel safely.
 	for mode in ["pause","saves","focus","stop"]:
 		await begin_inspection("cash")

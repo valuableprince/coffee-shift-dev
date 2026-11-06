@@ -446,8 +446,7 @@ func station_available_action(station: ShiftWorkstation) -> String:
 	if station.action == "fridge" and fridge.moving: return "Открывается…" if fridge.opened else "Закрывается…"
 	if session.equipment.has(station.action) and not session.shift_open and not session.equipment[station.action]:
 		if accessories.inspected != "": return "Сначала верните предмет"
-		var offset := station.global_position - player.global_position
-		if Vector2(offset.x,offset.z).length() > 1.3: return "Подойдите ближе"
+		if not inspection.can_reach(station.action): return "Подойдите ближе"
 		return "[E] Осмотреть"
 	var next := session.preparation.next_step(session.catalog)
 	if station.action in ["filter", "dose", "pitcher"] and session.preparation.current.is_empty():
