@@ -54,13 +54,7 @@
 
 ## Скриншоты из работающего Godot
 
-![Радиоприёмник внутри трейлера](screenshots/01-radio-inside-trailer.png)
-
-![Подсказка включения](screenshots/02-radio-off-prompt.png)
-
-![Радиоприёмник крупным планом](screenshots/03-radio-close-up.png)
-
-![Включённое радио и индикатор](screenshots/04-radio-on-indicator.png)
+Четыре скриншота сохранены в переданном пользователю архиве `radio01_evidence.zip`. Из актуальной версии репозитория PNG удалены.
 
 ## CI и воспроизведение проверок
 
