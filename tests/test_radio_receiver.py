@@ -23,4 +23,4 @@ def run_test(root: Path):
     print('PASS: glb, scene graph, dimensions, geometry, textures, independent knobs')
 
 if __name__ == '__main__':
-    run_test(Path(__file__).resolve().parent)
+    run_test(Path(__file__).resolve().parent.parent / 'assets' / 'models' / 'radio_receiver')
