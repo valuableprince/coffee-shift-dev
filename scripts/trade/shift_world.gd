@@ -22,6 +22,7 @@ var save_manager: ShiftSaveManager
 var save_menu: RestorationSaveMenu
 var game_settings := CoffeeShiftSettings.new()
 var music: Audio01Director
+var radio_receiver: CoffeeShiftRadioReceiver
 var audio: ShiftAudio
 var stations: Dictionary = {}
 var shutter: Node3D
@@ -76,7 +77,9 @@ func _ready() -> void:
 	add_child(npc_root)
 	music = Audio01Director.new()
 	add_child(music)
-	music.attach_radio(trailer, Vector3(-.77, 1.49, 1.49))
+	music.attach_radio(radio_receiver, Vector3.ZERO, radio_receiver.get_node("RadioSound"))
+	music.radio_power_changed.connect(radio_receiver.set_power)
+	radio_receiver.set_power(music.radio_on)
 	audio = ShiftAudio.new()
 	add_child(audio)
 	var graphics := CoffeeShiftGraphics.new()
@@ -245,11 +248,24 @@ func _build_stations() -> void:
 	_station("carrier", "Держатель", Vector3(-.51, 1.43, .08))
 	_station("bin", "Мусорное ведро", Vector3(-.44, .85, 1.93), Vector3(.08, .25, .20))
 	_station("menu", "Меню / цены / запасы", Vector3(-.52, 1.95, -1.45), Vector3(.08, .28, .30))
-	# Physical receiver at the rear counter, separate from the scene background music.
-	_station("radio", "Радиоприёмник", Vector3(-.51, 1.49, 1.49), Vector3(.11, .19, .27))
-	G.box(trailer, "RadioCase", Vector3(-.77, 1.49, 1.49), Vector3(.28, .24, .31), Color("5d6357"), false)
-	G.box(trailer, "RadioSpeakerGrille", Vector3(-.62, 1.49, 1.42), Vector3(.012, .16, .13), Color("313a35"), false)
-	G.box(trailer, "RadioTuningDial", Vector3(-.62, 1.50, 1.59), Vector3(.013, .08, .08), Color("c1b588"), false)
+	# A small rear wall shelf keeps the receiver clear of the sink, worktops,
+	# upper cabinets and staff-door opening. Metre-scale original faces the aisle.
+	G.box(trailer, "RadioShelf", Vector3(-.915, 1.415, 2.30), Vector3(.45, .03, .46), Color("b7b4a0"))
+	for z in [2.14, 2.46]:
+		G.box(trailer, "RadioShelfBracket", Vector3(-1.10, 1.34, z), Vector3(.035, .12, .025), Color("526358"), false)
+	var mount := Node3D.new()
+	mount.name = "RadioMount"
+	mount.position = Vector3(-.88, 1.43, 2.30)
+	mount.rotation.y = PI / 2
+	trailer.add_child(mount)
+	radio_receiver = preload("res://assets/models/radio_receiver/radio_receiver.tscn").instantiate()
+	mount.add_child(radio_receiver)
+	var radio_target := radio_receiver.get_node("StaticBody3D") as ShiftWorkstation
+	radio_target.world = self
+	radio_target.action = "radio"
+	radio_target.caption = "Радиоприёмник"
+	radio_target.set_meta("action", "radio")
+	stations.radio = radio_target
 	G.cylinder(trailer, "SugarBowl", Vector3(-.78, 1.38, 1.03), .075, .16, Color("c7c5ab"), false)
 	G.cylinder(trailer, "SyrupBottle", Vector3(-.78, 1.46, .38), .044, .32, Color("8b784e"), false)
 	G.cylinder(trailer, "Bin", Vector3(-.72, .68, 1.94), .18, .50, Color("526358"), false)

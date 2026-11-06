@@ -3,6 +3,8 @@ extends PrototypeMusic
 ## AUDIO-01. Separate background music, 3D radio and one-shot musical cues.
 ## Extends PrototypeMusic only to preserve existing saved settings and test APIs.
 
+signal radio_power_changed(enabled: bool)
+
 const RADIO_PATHS := [
 	"res://assets/audio/music/radio/radio_01_jazz_improv.ogg",
 	"res://assets/audio/music/radio/radio_02_vibraphone.ogg",
@@ -95,18 +97,20 @@ func set_preferences(enabled: bool, volume_db: float) -> void:
 		AudioServer.set_bus_volume_db(index, _volume_db)
 		AudioServer.set_bus_mute(index, _muted)
 
-func attach_radio(parent: Node3D, local_position: Vector3) -> void:
+func attach_radio(parent: Node3D, local_position: Vector3, speaker: AudioStreamPlayer3D = null) -> void:
 	if _radio != null:
 		return
-	_radio = AudioStreamPlayer3D.new()
-	_radio.name = "Audio01RadioSpeaker"
-	_radio.position = local_position
+	# Reuse the receiver scene's one speaker rather than creating another stream.
+	_radio = speaker if speaker != null else AudioStreamPlayer3D.new()
+	if speaker == null:
+		_radio.name = "Audio01RadioSpeaker"
+		_radio.position = local_position
+		parent.add_child(_radio)
 	_radio.bus = "Radio"
 	_radio.process_mode = Node.PROCESS_MODE_ALWAYS
-	_radio.unit_size = 2.0
-	_radio.max_distance = 22.0
+	_radio.unit_size = 1.5
+	_radio.max_distance = 8.0
 	_radio.attenuation_model = AudioStreamPlayer3D.ATTENUATION_INVERSE_DISTANCE
-	parent.add_child(_radio)
 	_radio.finished.connect(_advance_radio)
 	_apply_radio_power()
 	if _context == "trade":
@@ -125,6 +129,12 @@ func set_context(context: String) -> void:
 	var old_context := _context
 	_context = context
 	if context == "trade":
+		# Menu/garage themes can use the same licensed source as a radio track.
+		# Stop both background decks before making the spatial broadcast audible.
+		_player.stop()
+		_bg_b.stop()
+		_active_bg = null
+		_outgoing_bg = null
 		_apply_radio_power()
 		if old_context != "trade":
 			_start_radio_broadcast()
@@ -173,22 +183,35 @@ func _start_radio_broadcast() -> void:
 		return
 	_advance_radio()
 
+func radio_paths() -> Array:
+	# One catalog, also overridable by fault-injection tests without touching files.
+	return RADIO_PATHS
+
 func _advance_radio() -> void:
-	if _radio == null or RADIO_PATHS.is_empty() or _context != "trade":
+	var paths := radio_paths()
+	if _radio == null or paths.is_empty() or _context != "trade":
 		return
-	var index := next_radio_index(radio_index)
-	var stream := _stream(RADIO_PATHS[index], false)
-	if stream == null:
-		push_warning("AUDIO-01: skipping invalid radio track " + str(index))
+	var first := next_radio_index(radio_index)
+	# Try every track at most once. Missing or invalid audio cannot strand the
+	# station on silence when another approved recording is available.
+	for offset in range(paths.size()):
+		var index := (first + offset) % paths.size()
+		var stream := _stream(str(paths[index]), false)
+		if stream == null:
+			continue
+		radio_index = index
+		_radio.stream = stream
+		_apply_radio_power()
+		if not _test_mode:
+			_radio.play()
 		return
-	radio_index = index
-	_radio.stream = stream
-	_apply_radio_power()
-	if not _test_mode:
-		_radio.play()
+	_radio.stop()
+	_radio.stream = null
+	radio_index = -1
+	push_warning("AUDIO-01: no playable radio tracks; receiver remains safe and silent")
 
 func next_radio_index(previous: int) -> int:
-	var count := RADIO_PATHS.size()
+	var count := radio_paths().size()
 	if count <= 1:
 		return 0
 	var index := _rng.randi_range(0, count - 2)
@@ -199,6 +222,8 @@ func next_radio_index(previous: int) -> int:
 func toggle_radio() -> void:
 	radio_on = not radio_on
 	_apply_radio_power()
+	if radio_on and _context == "trade" and radio_index < 0:
+		_start_radio_broadcast()
 	# Turning off the speaker must not stop playback or reset its timeline.
 
 func _apply_radio_power() -> void:
@@ -209,6 +234,7 @@ func _apply_radio_power() -> void:
 		AudioServer.set_bus_mute(bus_index, not (radio_on and _context == "trade"))
 	if _radio != null:
 		_radio.volume_db = -8.0
+	radio_power_changed.emit(radio_on)
 
 func play_opening_once() -> bool:
 	if first_shift_sting_played:
