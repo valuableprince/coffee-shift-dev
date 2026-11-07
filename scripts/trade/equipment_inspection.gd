@@ -175,8 +175,18 @@ func _pose_arm() -> bool:
 	shoulder_point = world.player.camera.to_global(Vector3(shoulder_x,-.30,-.25))
 	var offset := wrist_point - shoulder_point
 	var distance := offset.length()
-	if distance > UPPER_ARM + FOREARM + .005: return false
-	var span := clampf(distance,absf(UPPER_ARM-FOREARM)+.001,UPPER_ARM+FOREARM-.001)
+	if not is_finite(distance) or distance < .0001: return false
+	# The camera/view-model shoulder is a presentation anchor, not the physical
+	# shoulder used by can_reach(). During the fridge door swing the world-space
+	# handle can move beyond that temporary camera anchor by more than the arm
+	# length. Re-anchor the visible shoulder instead of cancelling a valid
+	# inspection mid-animation. Physical reach was already checked at start().
+	var maximum_span := UPPER_ARM + FOREARM - .001
+	if distance > maximum_span:
+		shoulder_point += offset / distance * (distance - maximum_span)
+		offset = wrist_point - shoulder_point
+		distance = offset.length()
+	var span := clampf(distance,absf(UPPER_ARM-FOREARM)+.001,maximum_span)
 	var axis := offset.normalized()
 	var pole := world.player.camera.global_basis * Vector3(.8 * side,-.6,0)
 	pole = (pole - axis * pole.dot(axis)).normalized()
