@@ -90,10 +90,13 @@ func sync() -> void:
 	if step == "stop_steam":
 		_align(pitcher, "SteamWandTarget", world.machine_visual.steam_tip(), Basis(Vector3.UP, -PI/2))
 	if _animation == "dose" and filter_in_hand:
-		# PressContact meets the existing dose inside the basket; no new step.
-		var depth := .035 - sin((.65 - _remaining) / .65 * PI) * .050
-		var target: Vector3 = filter.get_node("GroupLockOrigin").global_position + filter.global_basis.y * depth
-		_align(tamper, "PressContact", target, filter.global_basis)
+		# The basket stays on the real tamping mat rather than hovering in
+		# the player's camera. The tamper presses vertically into the grounds.
+		var basket_center := world.trailer.to_global(TAMPER_BASE + Vector3(0, .035, 0))
+		_align(filter, "GroupLockOrigin", basket_center, Basis(Vector3.UP, PI / 2))
+		var progress := clampf((.65 - _remaining) / .65, 0.0, 1.0)
+		var height := .082 - sin(progress * PI) * .070
+		_align(tamper, "PressContact", basket_center + Vector3.UP * height, Basis.IDENTITY)
 	if _animation == "pour" and not current.is_empty():
 		var target: Vector3 = world.machine_visual.cup_base() + Vector3(0, .15, 0)
 		_align(pitcher, "PourSpout", target, Basis(Vector3.FORWARD, -.7) * Basis(Vector3.UP, PI/2))
