@@ -92,7 +92,7 @@ func sync() -> void:
 	if _animation == "dose" and filter_in_hand:
 		# The basket stays on the real tamping mat rather than hovering in
 		# the player's camera. The tamper presses vertically into the grounds.
-		var basket_center := world.trailer.to_global(TAMPER_BASE + Vector3(0, .035, 0))
+		var basket_center: Vector3 = world.trailer.to_global(TAMPER_BASE + Vector3(0, .035, 0))
 		_align(filter, "GroupLockOrigin", basket_center, Basis(Vector3.UP, PI / 2))
 		var progress := clampf((.65 - _remaining) / .65, 0.0, 1.0)
 		var height := .082 - sin(progress * PI) * .070
