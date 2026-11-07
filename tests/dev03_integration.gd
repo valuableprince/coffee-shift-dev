@@ -186,11 +186,18 @@ func cook(id: int, index: int) -> void:
 		check(JSON.stringify(before) != JSON.stringify(level.session.snapshot()), "world operation progresses " + str(step))
 		check(level.validate_snapshot(level.capture_snapshot()), "world save valid after " + str(step))
 		if step == "extract":
+			await frames(2)
+			check(level.hud.extraction_timer.visible and level.hud.extraction_timer.text.contains("ЭКСТРАКЦИЯ"),
+				"permanent stopwatch is visible during espresso extraction")
 			check(level.save_manager.save_slot("manual", 1, true) == OK, "save during extraction")
 			var mid: Dictionary = level.capture_snapshot()
 			check(level.save_manager.load_slot(1, "manual", 1), "load running extraction")
 			check(JSON.stringify(level.capture_snapshot()) == JSON.stringify(mid), "running extraction restored without double use")
 	check(level.session.order_by_id(id).items[index].ready, "manually prepared cup reaches rack")
+	await frames(2)
+	if level.session.order_by_id(id).status == "ready":
+		check(level.hud.guide.text.contains("Вызвать №"),"finished order explicitly explains how to call customer")
+	check(not level.hud.extraction_timer.visible, "brewing stopwatch hides after preparation ends")
 
 func serve(id: int) -> void:
 	var order := level.session.order_by_id(id)
