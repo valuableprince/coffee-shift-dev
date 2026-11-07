@@ -4,14 +4,14 @@ extends Node3D
 const G := preload("res://scripts/prototype/prototype_geometry.gd")
 const STEP_HINTS := {
 	"beans": "Возьмите кофе из пакета слева", "grind": "Смелите кофе в кофемолке справа",
-	"filter": "Возьмите чистый портафильтр у кофемашины", "dose": "Наполните и утрамбуйте портафильтр темпером на коврике",
-	"install": "Установите портафильтр в группу кофемашины", "cup": "Возьмите подходящий стакан слева и поставьте под группу",
-	"extract": "Запустите экстракцию на кофемашине", "stop": "Остановите экстракцию на кофемашине",
-	"water": "Добавьте горячую воду отдельным краном", "milk": "Откройте холодильник слева и возьмите молоко с полки",
+	"filter": "Возьмите чистый рожок у кофемашины", "dose": "Наполните и утрамбуйте рожок темпером на коврике",
+	"install": "Установите рожок в группу кофемашины", "cup": "Возьмите пустой стакан слева — затем сами установите его под кофемашину",
+	"extract": "Запустите экстракцию на кофемашине [E] — наблюдайте секундомер", "stop": "Остановите экстракцию по секундомеру через 8–12 секунд [E]",
+	"water": "Долейте горячую воду через кран на кофемашине [E]", "milk": "Откройте холодильник слева и возьмите молоко с полки",
 	"pitcher": "Перелейте молоко в питчер рядом с кофемолкой", "steam": "Включите паровую трубку справа",
 	"stop_steam": "Остановите паровую трубку", "pour": "Добавьте молоко из питчера к кофе",
 	"sugar": "Добавьте порцию сахара из сахарницы слева", "syrup": "Добавьте ванильный сироп слева",
-	"lid": "Возьмите крышку рядом со стаканами", "place": "Поставьте готовый стакан на стойку выдачи"
+	"lid": "Возьмите крышку со стопки и наденьте её на стакан на столешнице", "place": "Перенесите закрытый стакан на стойку выдачи [E]"
 }
 var session := CoffeeShiftSession.new()
 var player: CoffeeShiftPlayer
@@ -253,7 +253,8 @@ func _build_stations() -> void:
 	_station("lids", "Крышки", Vector3(-.51, 1.35, .85), Vector3(.08, .1, .18))
 	_station("sugar", "Сахар", Vector3(-.51, 1.47, 1.03), Vector3(.08, .16, .16))
 	_station("syrup", "Ваниль", Vector3(-.51, 1.55, .38), Vector3(.08, .16, .16))
-	_station("ready", "Готовый напиток", Vector3(.52, 1.30, .50), Vector3(.08, .12, .18))
+	_station("countertop", "Место для стакана", Vector3(-.78, 1.38, -.50), Vector3(.20, .20, .19))
+	_station("ready", "Выдача напитка", Vector3(.52, 1.30, .50), Vector3(.08, .12, .18))
 	_station("carrier", "Держатель", Vector3(-.51, 1.43, .08))
 	_station("bin", "Мусорное ведро", Vector3(-.44, .85, 1.93), Vector3(.08, .25, .20))
 	_station("menu", "Меню / цены / запасы", Vector3(-.52, 1.95, -1.45), Vector3(.08, .28, .30))
@@ -361,16 +362,80 @@ func _refresh_held() -> void:
 			mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			(mesh.material_override as StandardMaterial3D).transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	var step := session.preparation.next_step(session.catalog)
-	if step not in ["dose", "install", "steam", "stop_steam", "pour", "milk"]:
-		G.box(held, "Hand", Vector3(.04, -.08, .04), Vector3(.075, .11, .13), Color("ba9c7a"), false)
+	# Use the same actual paper cup / lid as the counter scene, not the old
+	# placeholder cubes. The shared PS2+ hand follows the camera.
+	if str(w.get("handling", "")) in ["cup_held", "cup_full_held", "lid_held"]:
+		BaristaHand.build(held)
 	if step == "pitcher":
 		var carton: Node3D = load("res://assets/models/utrenniy_lug/milk_carton.tscn").instantiate()
 		carton.scale = Vector3.ONE * .7
 		carton.position.y = -.09
 		held.add_child(carton)
 		for body in carton.find_children("*", "StaticBody3D", true, false): body.collision_layer = 0
-	elif int(w.step) < 3:
-		G.box(held, "Dose", Vector3.ZERO, Vector3(.10, .10, .08), Color("927853"), false)
+
+
+# A cosmetic, persisted handling phase between real recipe operations.
+# The old recipe indices are unchanged, so an in-progress legacy save remains
+# loadable without inventing new ingredient consumption.
+static func handling_hint(work: Dictionary) -> String:
+	match str(work.get("handling", "")):
+		"cup_held": return "Стакан в руке. Поставьте его под группу кофемашины [E]"
+		"cup_ready_on_machine": return "Напиток готов. Заберите стакан из кофемашины [E]"
+		"cup_full_held": return "Стакан в руке. Поставьте его на столешницу слева [E]"
+		"cup_on_counter": return "Стакан на столе. Добавьте ингредиенты или возьмите крышку слева"
+		"lid_held": return "Крышка в руке. Наденьте её на стакан на столешнице [E]"
+		"lid_attached": return "Стакан закрыт. Перенесите его на стойку выдачи [E]"
+	return ""
+
+
+func _set_cup_handling(phase: String, instruction: String) -> void:
+	if session.preparation.current.is_empty(): return
+	session.preparation.current["handling"] = phase
+	session.notify(instruction)
+
+
+func _interact_cup_handling(action: String, next: String) -> bool:
+	var work: Dictionary = session.preparation.current
+	if work.is_empty(): return false
+	var phase := str(work.get("handling", ""))
+	match phase:
+		"cup_held":
+			if action == "machine":
+				if session.prepare_action("cup"):
+					_set_cup_handling("cup_in_machine", "Стакан под группой. Запустите экстракцию [E]")
+				return true
+		"cup_ready_on_machine":
+			if action == "machine":
+				_set_cup_handling("cup_full_held", "Готовый стакан в руке. Поставьте на столешницу слева")
+				return true
+		"cup_full_held":
+			if action == "countertop":
+				_set_cup_handling("cup_on_counter", "Стакан на столешнице. Возьмите крышку после добавок")
+				return true
+		"cup_on_counter":
+			if next == "lid" and action == "lids":
+				_set_cup_handling("lid_held", "Крышка в руке. Наденьте её на стакан на столешнице")
+				return true
+		"lid_held":
+			if action == "countertop":
+				if session.prepare_action("lid"):
+					_set_cup_handling("lid_attached", "Крышка надета. Поставьте готовый стакан на выдачу")
+				return true
+	# Do not silently consume items or skip a physical transfer via E on
+	# the old stock or machine target. Radio, fridge and other props remain free.
+	if action in ["machine", "cups", "countertop", "lids", "ready", "sugar", "syrup"] and phase in [
+		"cup_held", "cup_ready_on_machine", "cup_full_held", "cup_on_counter", "lid_held", "lid_attached"
+	]:
+		if phase == "cup_on_counter" and action == next and next in ["sugar", "syrup"]: return false
+		if phase == "lid_attached" and action == "ready" and next == "place": return false
+		if phase == "cup_on_counter" and action == "lids" and next != "lid": return true
+		return true
+	if phase == "" and next == "cup" and action == "cups":
+		_set_cup_handling("cup_held", "Стакан в руке. Установите его под кофемашину [E]")
+		return true
+	if phase == "cup_in_machine" and action == "cups": return true
+	return false
+
 
 func _input(event: InputEvent) -> void:
 	if not _ready_for_input or not is_instance_valid(main_menu) or not is_instance_valid(save_menu): return
@@ -455,6 +520,24 @@ func station_available_action(station: ShiftWorkstation) -> String:
 		if not inspection.can_reach(station.action): return "Подойдите ближе"
 		return "[E] Осмотреть"
 	var next := session.preparation.next_step(session.catalog)
+	var phase := str(session.preparation.current.get("handling", ""))
+	if station.action in ["machine", "cups", "countertop", "lids", "ready", "sugar", "syrup"]:
+		match phase:
+			"cup_held":
+				return "[E] Установить стакан под кофемашину" if station.action == "machine" else ""
+			"cup_ready_on_machine":
+				return "[E] Взять стакан с напитком" if station.action == "machine" else ""
+			"cup_full_held":
+				return "[E] Поставить стакан на стол" if station.action == "countertop" else ""
+			"cup_on_counter":
+				if station.action == "lids" and next == "lid": return "[E] Взять крышку"
+				if station.action == next and next in ["sugar", "syrup"]: return "[E] Добавить"
+				return ""
+			"lid_held":
+				return "[E] Надеть крышку на стакан" if station.action == "countertop" else ""
+			"lid_attached":
+				return "[E] Перенести на выдачу" if station.action == "ready" else ""
+		if station.action == "countertop": return ""
 	if station.action in ["filter", "dose", "pitcher"] and session.preparation.current.is_empty():
 		if accessories.inspected == station.action: return "[E] Вернуть"
 		if accessories.inspected == "": return "[E] Взять"
@@ -510,6 +593,7 @@ func interact_station(station: ShiftWorkstation) -> void:
 		if station_available_action(station).begins_with("[E]"): inspection.start(action)
 		return
 	var next := session.preparation.next_step(session.catalog)
+	if _interact_cup_handling(action, next): return
 	if action in ["filter", "dose", "pitcher"] and session.preparation.current.is_empty():
 		accessories.take_or_return(action)
 		return
@@ -524,7 +608,10 @@ func interact_station(station: ShiftWorkstation) -> void:
 			if not session.cash.payment.is_empty(): show_cash()
 			else: new_assets.register.toggle_drawer()
 		"machine":
-			if next in ["install", "extract", "stop"]: session.prepare_action(next)
+			if next in ["install", "extract", "stop"]:
+				var completed := session.prepare_action(next)
+				if completed and next == "stop" and session.catalog.recipes[session.preparation.current.recipe].drink == "espresso":
+					_set_cup_handling("cup_ready_on_machine", "Эспрессо готов. Возьмите стакан из кофемашины")
 			else: session.notify("Кофемашина готова. " + str(STEP_HINTS.get(next, "Выберите оплаченный заказ")))
 		"grinder":
 			if next == "grind": session.prepare_action("grind")
@@ -538,14 +625,22 @@ func interact_station(station: ShiftWorkstation) -> void:
 		"dose":
 			if next == "dose": accessories.play("dose")
 			session.prepare_action(action)
-		"beans", "filter", "water", "sugar", "syrup": session.prepare_action(action)
+		"beans", "filter", "water", "sugar", "syrup":
+			var completed := session.prepare_action(action)
+			if completed and action == "water":
+				_set_cup_handling("cup_ready_on_machine", "Американо готов. Возьмите стакан из кофемашины")
 		"pitcher":
 			if next == "pour": accessories.play("pour")
-			session.prepare_action("pour" if next == "pour" else "pitcher")
+			var completed := session.prepare_action("pour" if next == "pour" else "pitcher")
+			if completed and next == "pour":
+				_set_cup_handling("cup_ready_on_machine", "Напиток готов. Возьмите стакан из кофемашины")
 		"steam": session.prepare_action("stop_steam" if next == "stop_steam" else "steam")
 		"cups": session.prepare_action("cup")
 		"lids": session.prepare_action("lid")
-		"ready": session.prepare_action("place")
+		"ready":
+			if not session.preparation.current.is_empty() and str(session.preparation.current.get("handling", "")) == "lid_attached":
+				session.preparation.current["handling"] = ""
+			session.prepare_action("place")
 		"carrier": show_carrier()
 		"bin":
 			if not session.preparation.current.is_empty():
@@ -711,7 +806,7 @@ func show_report() -> void:
 	_panel("ОТЧЁТ СМЕНЫ", body)
 
 func show_help() -> void:
-	var text := "[Tab] — выбрать оплаченную позицию в заказах справа.\n\nПакет кофе → кофемолка → чистый портафильтр → дозировка и темпер → установить в кофемашину → стакан → запустить → вручную остановить через 8–12 секунд.\n\nАмерикано: затем отдельный кран горячей воды.\nКапучино / латте: открыть холодильник за ручку → взять молоко с полки → питчер → паровая трубка → остановить пар → питчер (влить). Холодильник закрывается той же ручкой. Капучино: 4–7 с пара, латте: 2–4 с.\n\nДобавки по заказу → крышка → стойка готовых напитков. Два-три стакана: каждый поставить в держатель. Вызвать номер справа через Tab → дождаться покупателя → E у окна → передать.\n\n[N] справочник. Меню и диалоги приостанавливают таймеры. Ошибку экстракции можно переделать у ведра.\n\nЭспрессо: 9 г / 40 мл. Американо С/Б: 9/18 г, вода 200/300 мл. Капучино С/Б: молоко 160/240 мл. Латте С/Б: молоко 210/290 мл."
+	var text := "[Tab] — выбрать оплаченный напиток. После оплаты начните с пакета кофе.\\n\\nРожок: зёрна → кофемолка → взять рожок → утрамбовать на коврике → установить в кофемашину.\\n\\nСтакан: взять из стопки [E], подойти к кофемашине и поставить под группу [E]. Запустить экстракцию [E], ориентироваться по секундомеру в верхней части экрана (8–12 с), остановить [E].\\n\\nАмерикано: после экстракции добавить горячую воду из крана кофемашины. Для латте и капучино: молоко → питчер → паровая трубка → остановить пар → влить молоко.\\n\\nПосле приготовления: взять стакан из кофемашины [E] → поставить на столешницу слева [E] → при необходимости добавить сахар/сироп → взять крышку со стопки [E] → надеть на стакан на столешнице [E] → перенести стакан на стойку выдачи [E].\\n\\nВЫДАЧА: справа нажать Tab → Вызвать № заказа → дождаться клиента у окна → навести на окно [E] → Передать через окно. Для 2–3 стаканов сначала заполнить держатель.\\n\\n[N] — открыть эту справку повторно. Капучино: 4–7 с пара, латте: 2–4 с."
 	_panel("СПРАВОЧНИК БАРИСТА", text)
 
 func capture_snapshot() -> Dictionary:
