@@ -63,7 +63,11 @@ func _build_corner_junctions() -> void:
 	# quarter-circle shoulders and the flat centre. In particular, the
 	# rear cross-piece is entirely ABOVE the 2.30 m staff-door head.
 	var source := $ShellVisual.find_child("Inner_Ceiling", true, false) as MeshInstance3D
-	var roof_material: Material = source.get_active_material(0) if source != null else null
+	var roof_material: Material = null
+	if source != null and source.mesh != null and source.mesh.get_surface_count() > 0:
+		# Read the import resource, not RenderingServer active material; headless
+		# tests run on the dummy renderer without live mesh material storage.
+		roof_material = source.mesh.surface_get_material(0)
 	var sections := 32
 	for end in [-1, 1]:
 		for i in range(sections):
