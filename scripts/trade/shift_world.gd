@@ -225,6 +225,10 @@ func _build_stations() -> void:
 	_station("counter", "Окно выдачи", Vector3(.51, 1.62, 0), Vector3(.10, .20, .24))
 	stations.cash = new_assets.register.get_node("BodyInteraction")
 	_station("machine", "Кофемашина", machine_visual.control_point("brew_left"), Vector3(.055, .055, .07))
+	# A separate direct-E target at the cup, independent from the machine's
+	# brew button: picking up or placing a cup never presses 'Start'.
+	_station("cup_tray", "Стакан под группой", machine_visual.cup_base() + Vector3(-.11, .07, 0), Vector3(.14, .17, .14))
+	stations.cup_tray.collision_layer = 0
 	# Physical model controls resolve to the same existing machine operation.
 	machine_visual.reparent(stations.machine)
 	for control in ["power", "brew_right", "group"]:
@@ -351,6 +355,8 @@ func _refresh_held() -> void:
 			child.queue_free()
 	machine_visual.sync(session.equipment.machine, session.preparation.current)
 	accessories.sync()
+	if stations.has("cup_tray"):
+		stations.cup_tray.collision_layer = 2 if str(session.preparation.current.get("handling", "")) in ["cup_held", "cup_ready_on_machine"] else 0
 	if session.preparation.current.is_empty(): return
 	var w: Dictionary = session.preparation.current
 	new_assets.preparation(preparation_visual, held)
@@ -400,12 +406,12 @@ func _interact_cup_handling(action: String, next: String) -> bool:
 	var phase := str(work.get("handling", ""))
 	match phase:
 		"cup_held":
-			if action == "machine":
+			if action == "cup_tray":
 				if session.prepare_action("cup"):
 					_set_cup_handling("cup_in_machine", "Стакан под группой. Запустите экстракцию [E]")
 				return true
 		"cup_ready_on_machine":
-			if action == "machine":
+			if action == "cup_tray":
 				_set_cup_handling("cup_full_held", "Готовый стакан в руке. Поставьте на столешницу слева")
 				return true
 		"cup_full_held":
@@ -423,7 +429,7 @@ func _interact_cup_handling(action: String, next: String) -> bool:
 				return true
 	# Do not silently consume items or skip a physical transfer via E on
 	# the old stock or machine target. Radio, fridge and other props remain free.
-	if action in ["machine", "cups", "countertop", "lids", "ready", "sugar", "syrup"] and phase in [
+	if action in ["machine", "cup_tray", "cups", "countertop", "lids", "ready", "sugar", "syrup"] and phase in [
 		"cup_held", "cup_ready_on_machine", "cup_full_held", "cup_on_counter", "lid_held", "lid_attached"
 	]:
 		if phase == "cup_on_counter" and action == next and next in ["sugar", "syrup"]: return false
@@ -521,12 +527,12 @@ func station_available_action(station: ShiftWorkstation) -> String:
 		return "[E] Осмотреть"
 	var next := session.preparation.next_step(session.catalog)
 	var phase := str(session.preparation.current.get("handling", ""))
-	if station.action in ["machine", "cups", "countertop", "lids", "ready", "sugar", "syrup"]:
+	if station.action in ["machine", "cup_tray", "cups", "countertop", "lids", "ready", "sugar", "syrup"]:
 		match phase:
 			"cup_held":
-				return "[E] Установить стакан под кофемашину" if station.action == "machine" else ""
+				return "[E] Поставить стакан под группу" if station.action == "cup_tray" else ""
 			"cup_ready_on_machine":
-				return "[E] Взять стакан с напитком" if station.action == "machine" else ""
+				return "[E] Взять стакан с напитком" if station.action == "cup_tray" else ""
 			"cup_full_held":
 				return "[E] Поставить стакан на стол" if station.action == "countertop" else ""
 			"cup_on_counter":
@@ -537,7 +543,7 @@ func station_available_action(station: ShiftWorkstation) -> String:
 				return "[E] Надеть крышку на стакан" if station.action == "countertop" else ""
 			"lid_attached":
 				return "[E] Перенести на выдачу" if station.action == "ready" else ""
-		if station.action == "countertop": return ""
+		if station.action in ["cup_tray", "countertop"]: return ""
 	if station.action in ["filter", "dose", "pitcher"] and session.preparation.current.is_empty():
 		if accessories.inspected == station.action: return "[E] Вернуть"
 		if accessories.inspected == "": return "[E] Взять"
