@@ -3,6 +3,7 @@ extends Node3D
 ## Reusable 5.5 m trailer shell asset. Origin: ground at the geometric body centre.
 ## Local +X: service window. Local +Z: staff entry. Neither includes kitchen equipment.
 ## Interaction targets are on layer 2, while shell collision is on layer 1.
+const G := preload("res://scripts/prototype/prototype_geometry.gd")
 
 signal hatch_state_changed(opened: bool)
 signal rear_door_state_changed(opened: bool)
@@ -20,9 +21,62 @@ var _door_tween: Tween
 
 
 func _ready() -> void:
+	_build_corner_junctions()
 	_build_shell_collision()
 	set_hatch_open(hatch_starts_open, false)
 	set_rear_door_open(rear_door_starts_open, false)
+
+
+# Close the four actual wall-to-gable joints and the curved roof-to-end
+# joints. These are solid, overlapping return panels with their own collisions,
+# not uncollidable visual strips pasted across empty holes. The original
+# window, staff doorway, shell GLB and shell collision remain unchanged.
+static func _inner_roof_height(x: float) -> float:
+	var shoulder := maxf(0.0, absf(x) - .65)
+	return 2.15 + sqrt(maxf(0.0, .49 * .49 - shoulder * shoulder))
+
+
+func _build_corner_junctions() -> void:
+	var junctions := Node3D.new()
+	junctions.name = "CornerJunctions"
+	add_child(junctions)
+	var wall_color := Color("d8d9ca")
+	var ceiling_color := Color("e6e6d6")
+	var base_color := Color("9ba69b")
+	# The inner longitudinal skin ends at X ~= +/-1.14; the gables meet
+	# the inner lining at Z ~= +/-2.69. Each pair of returns overlaps both
+	# skins, including the lower wall and the start of the roof shoulder.
+	for side in [-1, 1]:
+		for end in [-1, 1]:
+			var tag := ("%s_%s" % ["L" if side < 0 else "R", "F" if end < 0 else "R"])
+			G.box(junctions, "EndReturn_" + tag,
+				Vector3(float(side) * 1.035, 1.275, float(end) * 2.675),
+				Vector3(.23, 1.75, .14), wall_color)
+			G.box(junctions, "SideReturn_" + tag,
+				Vector3(float(side) * 1.12, 1.275, float(end) * 2.56),
+				Vector3(.085, 1.75, .30), wall_color)
+			# The lower return also joins the existing floor trim at 90 degrees.
+			G.box(junctions, "BaseReturn_" + tag,
+				Vector3(float(side) * 1.035, .43, float(end) * 2.64),
+				Vector3(.23, .06, .22), base_color, false)
+	# Carry the joint continuously over the inner roof's original 0.49 m
+	# quarter-circle shoulders and the flat centre. In particular, the
+	# rear cross-piece is entirely ABOVE the 2.30 m staff-door head.
+	var source := $ShellVisual.find_child("Inner_Ceiling", true, false) as MeshInstance3D
+	var roof_material: Material = source.get_active_material(0) if source != null else null
+	var sections := 32
+	for end in [-1, 1]:
+		for i in range(sections):
+			var x0 := -1.14 + 2.28 * float(i) / float(sections)
+			var x1 := -1.14 + 2.28 * float(i + 1) / float(sections)
+			var y0 := _inner_roof_height(x0)
+			var y1 := _inner_roof_height(x1)
+			var piece := G.box(junctions, "RoofReturn_%s_%02d" % ["F" if end < 0 else "R", i],
+				Vector3((x0 + x1) * .5, (y0 + y1) * .5 - .028, float(end) * 2.68),
+				Vector3(Vector2(x1 - x0, y1 - y0).length() + .012, .065, .16), ceiling_color)
+			piece.rotation.z = atan2(y1 - y0, x1 - x0)
+			if roof_material != null:
+				(piece.get_node("Mesh") as MeshInstance3D).material_override = roof_material
 
 
 func _build_shell_collision() -> void:
