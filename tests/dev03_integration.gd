@@ -155,7 +155,34 @@ func cook(id: int, index: int) -> void:
 			level.session.tick(4.5 if level.session.catalog.recipes[order.items[index].recipe].drink == "cappuccino" else 2.5)
 			if "08-cappuccino" not in _shot_names: await shot("08-cappuccino")
 		var before: Dictionary = level.session.snapshot()
-		await use(str(mapping[step]))
+		if step == "cup":
+			await use("cups")
+			check(level.session.preparation.next_step(level.session.catalog) == "cup" and str(level.session.preparation.current.get("handling", "")) == "cup_held",
+				"physical empty cup is first picked up, not teleported into machine")
+			check(level.held.get_node_or_null("HeldEmptyCup") != null,"original cup GLB rendered in hand")
+			await use("machine")
+			check(str(level.session.preparation.current.get("handling", "")) == "cup_in_machine",
+				"second E puts cup onto drip tray")
+		elif step == "lid":
+			await use("lids")
+			check(str(level.session.preparation.current.get("handling", "")) == "lid_held",
+				"lid is picked into hand before applying it")
+			check(level.held.get_node_or_null("HeldLid") != null, "original lid GLB visible in hand")
+			await use("countertop")
+			check(str(level.session.preparation.current.get("handling", "")) == "lid_attached",
+				"lid can only be attached at the worktop")
+		else:
+			await use(str(mapping[step]))
+		if step in ["water", "pour"] or (step == "stop" and str(level.session.catalog.recipes[order.items[index].recipe].drink) == "espresso"):
+			check(str(level.session.preparation.current.get("handling", "")) == "cup_ready_on_machine",
+				"filled cup remains under group after liquid preparation")
+			await use("machine")
+			check(str(level.session.preparation.current.get("handling", "")) == "cup_full_held",
+				"player picks filled cup from machine")
+			check(level.held.get_node_or_null("HeldFilledCup") != null,"full cup visible in camera hand")
+			await use("countertop")
+			check(str(level.session.preparation.current.get("handling", "")) == "cup_on_counter",
+				"player places filled cup on worktop for lid and toppings")
 		check(JSON.stringify(before) != JSON.stringify(level.session.snapshot()), "world operation progresses " + str(step))
 		check(level.validate_snapshot(level.capture_snapshot()), "world save valid after " + str(step))
 		if step == "extract":
