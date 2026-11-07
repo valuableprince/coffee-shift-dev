@@ -12,6 +12,12 @@ func check(ok: bool, description: String) -> void:
 func _initialize() -> void:
 	call_deferred("run")
 
+func has_collision(node: Node) -> bool:
+	if node == null: return false
+	for child in node.get_children():
+		if child is CollisionShape3D and child.shape != null: return true
+	return false
+
 func run() -> void:
 	var shell := load("res://assets/models/coffee_trailer/coffee_trailer.tscn").instantiate() as CoffeeShiftTrailerAsset
 	root.add_child(shell)
@@ -33,12 +39,12 @@ func run() -> void:
 			check(side_return is StaticBody3D, "solid side/wall return: " + tag)
 			check(base_return != null, "continuous floor trim: " + tag)
 			if end_return is StaticBody3D and side_return is StaticBody3D:
-				check(end_return.get_node("Collision") is CollisionShape3D and side_return.get_node("Collision") is CollisionShape3D,
+				check(has_collision(end_return) and has_collision(side_return),
 					"both returns have physics collisions: " + tag)
 	for end in ["F", "R"]:
 		for i in range(32):
 			var piece := junctions.get_node_or_null("RoofReturn_%s_%02d" % [end, i])
-			check(piece is StaticBody3D and piece.get_node("Collision") is CollisionShape3D,
+			check(piece is StaticBody3D and has_collision(piece),
 				"continuous structural roof closure: %s/%d" % [end, i])
 	check(is_equal_approx(shell._inner_roof_height(0.0), 2.64), "flat roof junction follows imported ceiling")
 	check(absf(shell._inner_roof_height(1.14) - 2.15) < .001, "curved roof closure joins actual wall crown")
@@ -51,7 +57,10 @@ func run() -> void:
 	var query := PhysicsRayQueryParameters3D.create(Vector3(0, 1.4, 2.50), Vector3(0, 1.4, 2.95), 1)
 	var hit := shell.get_world_3d().direct_space_state.intersect_ray(query)
 	check(hit.is_empty(), "GEO-01 leaves the real staff doorway clear")
-	# The known serving aperture (inner side X=+1.14) is also untouched.
+	# Open the actual service shutter before testing the aperture: the
+	# closed shutter itself has a legitimate layer-1 interaction collider.
+	shell.set_hatch_open(true, false)
+	await physics_frame
 	query = PhysicsRayQueryParameters3D.create(Vector3(1.00, 1.70, 0), Vector3(1.35, 1.70, 0), 1)
 	hit = shell.get_world_3d().direct_space_state.intersect_ray(query)
 	check(hit.is_empty(), "GEO-01 keeps the service hatch cut-out clear")
