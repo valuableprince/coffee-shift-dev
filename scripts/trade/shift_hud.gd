@@ -11,6 +11,8 @@ var message: Label
 var guide: Label
 var extraction_timer: Label
 var next_step_hint: Label
+var _action_panel: PanelContainer
+var _timer_panel: PanelContainer
 var tasks: EquipmentTaskList
 var panel: PanelContainer
 var panel_content: VBoxContainer
@@ -60,51 +62,68 @@ func _ready() -> void:
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	business = _label(Vector2(20, 16), 18)
-	business.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	business.offset_left = 20
-	business.offset_right = -330
-	business.offset_top = 16
-	business.offset_bottom = 42
+	var status_panel := _overlay(Vector2i(14, 9))
+	status_panel.position = Vector2(20, 16)
+	status_panel.custom_minimum_size.x = 305
+	var status_lines := VBoxContainer.new()
+	status_lines.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	status_panel.add_child(status_lines)
+	business = _label(Vector2.ZERO, 18)
+	business.reparent(status_lines, false)
 	business.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	status = _label(Vector2(20, 46), 16)
-	message = _label(Vector2(20, 104), 16)
+	business.add_theme_color_override("font_color", Color("eed7a6"))
+	status = _label(Vector2.ZERO, 15)
+	status.reparent(status_lines, false)
+	message = _label(Vector2(20, 113), 16)
 	message.size = Vector2(440, 90)
 	message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	message.add_theme_color_override("font_outline_color", Color("202923"))
+	message.add_theme_constant_override("outline_size", 4)
 	guide = _label(Vector2.ZERO, 14)
 	guide.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	guide.add_theme_color_override("font_color", Color("f0dcab"))
-	# Always-visible brewing stopwatch. This does not live inside the
-	# scrolling order list and cannot disappear when messages expire.
+	_timer_panel = _overlay(Vector2i(16, 8))
+	_timer_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	_timer_panel.offset_left = -161
+	_timer_panel.offset_right = 161
+	_timer_panel.offset_top = 22
+	_timer_panel.offset_bottom = 64
 	extraction_timer = _label(Vector2.ZERO, 21)
 	extraction_timer.name = "ExtractionTimer"
-	extraction_timer.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	extraction_timer.offset_left = -255
-	extraction_timer.offset_right = 255
-	extraction_timer.offset_top = 58
-	extraction_timer.offset_bottom = 94
+	extraction_timer.reparent(_timer_panel, false)
 	extraction_timer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	extraction_timer.hide()
-	# Pinned above the scene rather than inside the scrolling orders list.
-	# This line persists for the entire step (also during long pauses).
-	next_step_hint = _label(Vector2.ZERO, 17)
+	_timer_panel.hide()
+	_action_panel = _overlay(Vector2i(16, 9))
+	_action_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	_action_panel.offset_left = -244
+	_action_panel.offset_right = 244
+	_action_panel.offset_bottom = -48
+	_action_panel.offset_top = -90
+	var action_lines := VBoxContainer.new()
+	action_lines.add_theme_constant_override("separation", 4)
+	action_lines.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_action_panel.add_child(action_lines)
+	next_step_hint = _label(Vector2.ZERO, 16)
 	next_step_hint.name = "NextStepHint"
-	next_step_hint.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	next_step_hint.offset_left = -325
-	next_step_hint.offset_right = 325
-	next_step_hint.offset_top = 105
-	next_step_hint.offset_bottom = 152
+	next_step_hint.reparent(action_lines, false)
 	next_step_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	next_step_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	next_step_hint.add_theme_color_override("font_color", Color("f0dcab"))
+	next_step_hint.add_theme_color_override("font_color", Color("f4ead3"))
 	next_step_hint.hide()
+	hint = _label(Vector2.ZERO, 15)
+	hint.name = "ContextHint"
+	hint.reparent(action_lines, false)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.add_theme_color_override("font_color", Color("bedfcd"))
+	_action_panel.hide()
 	reticle = InteractionReticle.new()
 	root.add_child(reticle)
-	hint = reticle.hint
 	var controls := _label(Vector2.ZERO, 12)
 	control_hints = controls
 	controls.name = "ControlHints"
-	controls.text = "WASD — ходьба   E — предмет / радио   Tab — заказы   N — справочник   F6 — сохранения   Esc — меню"
+	controls.text = "WASD — ходьба   E — взаимодействовать   Tab — заказы   N — справочник   F6 — сохранения   Esc — меню"
 	controls.add_theme_color_override("font_color", Color("c5ccc4"))
 	controls.add_theme_constant_override("shadow_offset_y", 1)
 	controls.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
@@ -141,12 +160,39 @@ func _ready() -> void:
 	panel_content.add_theme_constant_override("separation", 12)
 	scroll.add_child(panel_content)
 	panel.hide()
+	panel.visibility_changed.connect(_update_overlays)
 	_build_aside()
 	get_viewport().size_changed.connect(func() -> void:
 		if panel.visible:
 			_layout_panel(_dialogue_mode)
 			if _dialogue_mode: call_deferred("_fit_dialogue_panel")
 		if aside.visible: _layout_aside())
+
+func _overlay(inset: Vector2i) -> PanelContainer:
+	var overlay := PanelContainer.new()
+	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(.075, .126, .112, .94)
+	style.border_color = Color(.56, .63, .50, .37)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(9)
+	style.shadow_color = Color(0, 0, 0, .3)
+	style.shadow_size = 4
+	style.content_margin_left = inset.x
+	style.content_margin_right = inset.x
+	style.content_margin_top = inset.y
+	style.content_margin_bottom = inset.y
+	overlay.add_theme_stylebox_override("panel", style)
+	root.add_child(overlay)
+	return overlay
+
+func _update_overlays() -> void:
+	var available := not panel.visible and not orders_editing
+	hint.visible = not hint.text.is_empty()
+	_action_panel.visible = available and (next_step_hint.visible or hint.visible)
+	if _action_panel.visible:
+		_action_panel.offset_top = _action_panel.offset_bottom - _action_panel.get_combined_minimum_size().y
+	_timer_panel.visible = available and extraction_timer.visible
 
 func _build_orders_panel() -> void:
 	orders_panel = PanelContainer.new()
@@ -169,6 +215,7 @@ func _build_orders_panel() -> void:
 	orders_hint = Label.new()
 	orders_hint.text = "ЗАКАЗЫ   ·   [Tab] выбрать"
 	orders_hint.add_theme_font_size_override("font_size", 14)
+	_outline(orders_hint)
 	column.add_child(orders_hint)
 	tasks = EquipmentTaskList.new()
 	column.add_child(tasks)
@@ -181,6 +228,7 @@ func _build_orders_panel() -> void:
 	guide.add_theme_constant_override("line_spacing", 0)
 	guide.add_theme_constant_override("shadow_offset_x", 0)
 	guide.add_theme_constant_override("shadow_offset_y", 0)
+	_outline(guide)
 	order_cards = VBoxContainer.new()
 	order_cards.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	order_cards.add_theme_constant_override("separation", 5)
@@ -189,6 +237,7 @@ func _build_orders_panel() -> void:
 func set_orders_editing(value: bool) -> void:
 	orders_editing = value
 	orders_hint.text = "ЗАКАЗЫ   ·   [Tab/Esc] вернуться" if value else "ЗАКАЗЫ   ·   [Tab] выбрать"
+	_update_overlays()
 
 func _refresh_orders(session: CoffeeShiftSession) -> void:
 	var active := session.active_orders()
@@ -210,6 +259,7 @@ func _refresh_orders(session: CoffeeShiftSession) -> void:
 		heading.text = "№%03d   ·   %s" % [int(order.id),status_text]
 		heading.add_theme_color_override("font_color",Color("ead5a3"))
 		heading.add_theme_font_size_override("font_size",14)
+		_outline(heading)
 		card.add_child(heading)
 		for i in range(order.items.size()):
 			var id := int(order.id)
@@ -232,7 +282,7 @@ func _refresh_orders(session: CoffeeShiftSession) -> void:
 			var id := int(order.id)
 			var call := Button.new()
 			call.text = "Вызвать №%03d" % id if order.status == "ready" else "Покупатель идёт к окну"
-			call.disabled = order.status != "ready"
+			call.disabled = order.status != "ready" or (order.items.size() > 1 and order.packed.size() != order.items.size())
 			call.focus_mode = Control.FOCUS_NONE
 			call.custom_minimum_size.y = 32
 			call.pressed.connect(func() -> void: order_called.emit(id))
@@ -248,6 +298,10 @@ func _label(point: Vector2, font_size: int) -> Label:
 	label.add_theme_constant_override("shadow_offset_y", 2)
 	root.add_child(label)
 	return label
+
+func _outline(label: Label) -> void:
+	label.add_theme_color_override("font_outline_color", Color(.07, .10, .08, .92))
+	label.add_theme_constant_override("outline_size", 3)
 
 func say(value: String) -> void:
 	message.text = value
@@ -550,7 +604,7 @@ func clear_aside() -> void:
 	_aside_words.clear()
 	_aside_time = 0
 
-func refresh(session: CoffeeShiftSession) -> void:
+func refresh(session: CoffeeShiftSession, operation_hint: String = "") -> void:
 	_refresh_orders(session)
 	tasks.sync(session)
 	orders_hint.visible = session.shift_open or not session.active_orders().is_empty()
@@ -565,40 +619,53 @@ func refresh(session: CoffeeShiftSession) -> void:
 	if not session.preparation.current.is_empty():
 		var w: Dictionary = session.preparation.current
 		var next_step := session.preparation.next_step(session.catalog)
-		var instruction := ShiftWorld.handling_hint(w)
+		var instruction := operation_hint if not operation_hint.is_empty() else ShiftWorld.handling_hint(w, next_step)
 		if instruction.is_empty():
 			instruction = str(ShiftWorld.STEP_HINTS.get(next_step, ""))
 		next_step_hint.text = instruction
 		next_step_hint.show()
-		guide.text = "ЗАКАЗ №%03d\n%s\n%s" % [int(w.order), session.catalog.caption(w.item), instruction]
-		if w.running != "":
+		guide.text = "ЗАКАЗ №%03d\n%s" % [int(w.order), session.catalog.caption(w.item)]
+		if w.running in ["extract", "steam"]:
 			var recipe: Dictionary = session.catalog.recipes[w.recipe]
 			var limits: Array = recipe.foam if w.running == "steam" else recipe.extraction
 			var title := "ПАР" if w.running == "steam" else "ЭКСТРАКЦИЯ"
-			extraction_timer.text = "%s   %.1f с   •   норма %d–%d с" % [title, float(w.elapsed), int(limits[0]), int(limits[1])]
-			extraction_timer.add_theme_color_override("font_color", Color("a6d6b0") if float(w.elapsed) >= float(limits[0]) and float(w.elapsed) <= float(limits[1]) else (Color("f3b1a6") if float(w.elapsed) > float(limits[1]) else Color("f0dcab")))
+			var elapsed := ("%.1f" % float(w.elapsed)).replace(".", ",")
+			extraction_timer.text = "%s — %s с  ·  %d–%d с" % [title, elapsed, int(limits[0]), int(limits[1])]
+			extraction_timer.add_theme_color_override("font_color", Color("a6d6b0") if float(w.elapsed) >= float(limits[0]) and float(w.elapsed) <= float(limits[1]) else (Color("f3b1a6") if float(w.elapsed) > float(limits[1]) else Color("f4ead3")))
 			extraction_timer.show()
-			guide.text += "\nТаймер: %.1f с  |  ориентир: %d–%d с" % [float(w.elapsed), int(limits[0]), int(limits[1])]
 	elif session.selected_order > 0:
 		var order := session.order_by_id(session.selected_order)
 		if not order.is_empty() and session.selected_item < order.items.size():
 			if order.status == "ready":
-				next_step_hint.text = "Заказ готов! [Tab] → Вызвать №%03d" % int(order.id)
+				var needs_carrier: bool = order.items.size() > 1 and order.packed.size() != order.items.size()
+				next_step_hint.text = "Соберите стаканы заказа №%03d в картонный держатель" % int(order.id) if needs_carrier else "Заказ №%03d готов. Нажмите Tab и вызовите покупателя" % int(order.id)
+				if needs_carrier and not order.carrier:
+					next_step_hint.text = "Возьмите картонный держатель для заказа №%03d" % int(order.id)
 				next_step_hint.show()
-				guide.text = "ЗАКАЗ №%03d ГОТОВ!\n[Tab] → Вызвать №%03d\nДождитесь покупателя у окна и нажмите E для выдачи." % [int(order.id), int(order.id)]
+				guide.text = "Соберите напитки в держатель" if needs_carrier else "Вызвать №%03d через Tab" % int(order.id)
 			elif order.status == "called":
-				next_step_hint.text = "Дождитесь покупателя у окна → [E] → Передать заказ"
+				next_step_hint.text = "Дождитесь покупателя и наведите на него прицел"
 				next_step_hint.show()
-				guide.text = "ЗАКАЗ №%03d ВЫЗВАН\nДождитесь покупателя у окна.\n[E] у окна → Передать через окно." % int(order.id)
+				guide.text = "Покупатель идёт к окну"
+			elif order.items[session.selected_item].ready:
+				next_step_hint.text = "Нажмите Tab и выберите следующий напиток"
+				next_step_hint.show()
 			else:
-				guide.text = "Выбран №%03d\n%s\nНачните с пакета кофе слева." % [session.selected_order, session.catalog.caption(order.items[session.selected_item])]
+				guide.text = "Выбран №%03d\n%s" % [session.selected_order, session.catalog.caption(order.items[session.selected_item])]
+				next_step_hint.text = "Возьмите рожок у кофемашины"
+				next_step_hint.show()
 	elif session.shift_open:
 		guide.text = "[E] — покупатель у окна\n[Tab] — выбрать напиток или вызвать номер\n[N] — справочник бариста"
 	else:
 		guide.text = "Откройте створку за ручку.\nСмена — переключатель справа от окна." if not session.window_open else "Смена — переключатель справа от окна."
+	if not operation_hint.is_empty():
+		next_step_hint.text = operation_hint
+		next_step_hint.show()
 	guide.visible = not guide.text.is_empty()
+	_update_overlays()
 
 func _process(delta: float) -> void:
+	_update_overlays()
 	# Keep an empty or short order list compact; long lists still scroll.
 	var available := maxf(120, root.size.y - orders_panel.offset_top - 58)
 	if _dialogue_mode and panel.visible:

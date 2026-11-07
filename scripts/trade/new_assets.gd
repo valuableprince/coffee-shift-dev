@@ -15,6 +15,25 @@ var cup_stack: Node3D
 var lid_stack: Node3D
 var sink: CoffeeShiftSinkMixer
 var _restoring_sink := false
+const MOVE_SECONDS := .62
+const LID_GRIP := Vector3(.008, -.053, -.081)
+const LID_TILT := .87
+var _preparation_animation := ""
+var _move_elapsed := 0.0
+var _lid_in_motion: Node3D
+var _lid_hand: Node3D
+var _water_surface: Node3D
+var _water_height := 0.0
+var _handover: Node3D
+var _handover_start: Vector3
+var _handover_elapsed := 0.0
+var delivering_order := 0
+var _delivery_customer := 0
+var _rack_prop: Node3D
+var _rack_hand: Node3D
+var _rack_start: Vector3
+var _rack_end: Vector3
+var _rack_elapsed := 0.0
 
 func configure(owner_world: Node3D) -> void:
 	world = owner_world
@@ -119,6 +138,20 @@ func cup(parent: Node3D, id: String, contact: Vector3, capped: bool = false, occ
 		for body in model.find_children("*","StaticBody3D",true,false): body.collision_layer = 2
 	return model
 
+func carrier(parent: Node3D, id: String, origin: Vector3, count: int) -> Node3D:
+	var tray := Node3D.new()
+	tray.name = id
+	tray.position = origin
+	parent.add_child(tray)
+	var span := (count - 1) * .14
+	var kraft := Color("ad8f63")
+	G.box(tray, "Base", Vector3(span * .5, .006, 0), Vector3(span + .12, .012, .13), kraft, false)
+	for edge in [-.06, .06]:
+		G.box(tray, "Side", Vector3(span * .5, .020, edge), Vector3(span + .12, .028, .009), kraft, false)
+	for partition in range(count + 1):
+		G.box(tray, "Divider", Vector3(-.054 + partition * (span + .108) / count, .020, 0), Vector3(.009, .028, .114), kraft, false)
+	return tray
+
 func build_stock() -> void:
 	cup_stack = Node3D.new()
 	cup_stack.name = "CupStock"
@@ -143,7 +176,7 @@ func build_stock() -> void:
 
 # Placement on the existing left worktop, away from the grinder and the
 # stock stacks. Coordinates are relative to the original trailer scene.
-const COUNTERTOP_CUP_POINT := Vector3(-.78, 1.315, -.50)
+const COUNTERTOP_CUP_POINT := Vector3(-.78, 1.301, -.50)
 
 
 func _fill_cup(model: Node3D, parent: Node3D, point: Vector3, amount: float, extract_stream: bool) -> void:
@@ -156,8 +189,10 @@ func _fill_cup(model: Node3D, parent: Node3D, point: Vector3, amount: float, ext
 		var surface: Vector3 = point + Vector3.UP * (fill - .003)
 		G.cylinder(parent, "CoffeeStream", (nozzle + surface) / 2.0, .003, maxf(.001, nozzle.y - surface.y), Color("74553b"), false)
 
-
 func preparation(parent: Node3D, hand: Node3D) -> void:
+	_lid_in_motion = null
+	_lid_hand = null
+	_water_surface = null
 	var current: Dictionary = world.session.preparation.current
 	if current.is_empty(): return
 	var sequence: Array = world.session.catalog.steps(current.item)
@@ -171,20 +206,31 @@ func preparation(parent: Node3D, hand: Node3D) -> void:
 	var amount := float(current.consumed.get("water", 0))
 	if "pour" in sequence and index > sequence.find("pour"):
 		amount += float(current.consumed.get("milk", 0))
-	if stage == "cup_full_held":
+	if stage in ["cup_full_held", "water_held"]:
 		var handheld := cup(hand, "HeldFilledCup", Vector3(-.025, -.105, -.055))
 		_fill_cup(handheld, hand, Vector3.ZERO, amount, false)
 		return
+	if stage == "capped_held":
+		cup(hand, "HeldCappedCup", Vector3(-.025, -.105, -.055), true)
+		return
 	if stage in ["cup_on_counter", "lid_held", "lid_attached"]:
-		var capped := stage == "lid_attached"
+		var closing := stage == "lid_attached" and is_playing("lid")
+		var capped := stage == "lid_attached" and not closing
 		var cup_on_worktop := cup(parent, "CappedCupOnCounter" if capped else "CupOnCounter", COUNTERTOP_CUP_POINT, capped)
 		if not capped: _fill_cup(cup_on_worktop, parent, COUNTERTOP_CUP_POINT, amount, false)
-		if stage == "lid_held":
+		if stage == "lid_held" or closing:
 			var lid: Node3D = LID.instantiate()
-			lid.name = "HeldLid"
-			lid.position = Vector3(-.03, -.08, -.065)
-			hand.add_child(lid)
+			lid.name = "LidInMotion" if closing else "HeldLid"
+			lid.position = LID_GRIP
+			lid.rotation.x = LID_TILT
+			(parent if closing else hand).add_child(lid)
 			_disable_bodies(lid)
+			if closing:
+				_lid_in_motion = lid
+				_lid_hand = Node3D.new()
+				parent.add_child(_lid_hand)
+				BaristaHand.build(_lid_hand)
+				_update_preparation_animation()
 		return
 	# Legacy saved in-progress cups without a handling field stay compatible,
 	# and the ordinary running recipe remains on the machine's drip tray.
@@ -192,9 +238,117 @@ func preparation(parent: Node3D, hand: Node3D) -> void:
 	if lid_done:
 		cup(hand, "CupWithLid", Vector3(0, -.06, 0), true)
 		return
-	var base: Vector3 = world.trailer.to_local(world.machine_visual.cup_base())
-	var model := cup(parent, "CupUnderGroup", base, false, true)
+	var at_water := stage in ["cup_at_water_tap", "cup_ready_at_water_tap"]
+	var base: Vector3 = world.trailer.to_local(world.machine_visual.water_cup_base() if at_water else world.machine_visual.cup_base())
+	var model := cup(parent, "CupUnderWaterTap" if at_water else "CupUnderGroup", base, false, true)
 	_fill_cup(model, parent, base, amount if index > sequence.find("extract") else 0.0, current.running == "extract")
+	if at_water and is_playing("water"):
+		_water_surface = model.get_node("CoffeeSurface")
+		_water_height = _water_surface.position.y
+		var tip: Vector3 = world.trailer.to_local(world.machine_visual.water_tip())
+		var surface := base + Vector3.UP * .022
+		G.cylinder(parent, "HotWaterStream", (tip + surface) / 2.0, .0028, tip.y - surface.y, Color("b5ced0"), false)
+		_update_preparation_animation()
+
+func is_playing(action: String) -> bool:
+	return _preparation_animation == action
+
+func play_preparation(action: String) -> void:
+	_preparation_animation = action
+	_move_elapsed = 0.0
+	world._refresh_held()
+
+func play_handover(order_id: int, customer_id: int, count: int, start: Vector3) -> void:
+	if delivering_order != 0: return
+	delivering_order = order_id
+	_delivery_customer = customer_id
+	_handover = Node3D.new()
+	_handover.name = "Handover"
+	world.trailer.add_child(_handover)
+	_handover.global_position = start
+	_handover_start = start
+	_handover_elapsed = 0.0
+	if count > 1:
+		carrier(_handover, "CardboardCarrier", Vector3(0, -.014, 0), count)
+	for i in range(count):
+		cup(_handover, "HandedCup%d" % i, Vector3(i * .14, 0, 0), true)
+	var hand := Node3D.new()
+	_handover.add_child(hand)
+	hand.position = Vector3(-.07, .012, 0)
+	hand.rotation.y = -2.0
+	hand.scale = Vector3(.86, .88, .93)
+	BaristaHand.build(hand)
+
+func is_moving_on_rack() -> bool:
+	return is_instance_valid(_rack_prop) and _rack_prop.is_inside_tree()
+
+func move_on_rack(prop: Node3D, start: Vector3) -> void:
+	_rack_prop = prop
+	_rack_start = start
+	_rack_end = prop.global_position
+	_rack_elapsed = 0.0
+	_rack_hand = Node3D.new()
+	prop.add_child(_rack_hand)
+	_rack_hand.global_position = prop.global_position + Vector3(-.06, .035, 0)
+	_rack_hand.global_rotation.y = -PI/2
+	BaristaHand.build(_rack_hand)
+	prop.global_position = start
+
+func reset_animations() -> void:
+	_preparation_animation = ""
+	delivering_order = 0
+	if is_moving_on_rack():
+		_rack_prop.global_position = _rack_end
+		_rack_hand.queue_free()
+	_rack_prop = null
+	if is_instance_valid(_handover):
+		_handover.queue_free()
+		_handover = null
+
+func _update_preparation_animation() -> void:
+	var progress := _move_elapsed / MOVE_SECONDS
+	if is_instance_valid(_lid_in_motion):
+		var start: Vector3 = world.held.to_global(LID_GRIP)
+		var contact: Vector3 = world.trailer.to_global(COUNTERTOP_CUP_POINT + Vector3.UP * .111)
+		var over := contact + Vector3.UP * .06
+		var reach := start.lerp(over, smoothstep(0.0, .52, progress))
+		_lid_in_motion.global_position = reach.lerp(contact, smoothstep(.52, .77, progress))
+		var from: Basis = world.held.global_basis * Basis(Vector3.RIGHT, LID_TILT)
+		_lid_in_motion.global_basis = from.slerp(Basis(Vector3.UP, -PI/2), smoothstep(.15, .66, progress))
+		var side: Vector3 = world.player.camera.global_basis.x * .032
+		_lid_hand.global_position = (_lid_in_motion.global_position + side + Vector3.UP * .025).lerp(start, smoothstep(.77, 1.0, progress))
+		_lid_hand.rotation.y = world.player.rotation.y - .51
+	if is_instance_valid(_water_surface):
+		_water_surface.position.y = lerpf(.025, _water_height, progress)
+
+func _process(delta: float) -> void:
+	if not is_instance_valid(world) or not is_instance_valid(world.player): return
+	if not world.player.controls_enabled or not world.player.mouse_captured: return
+	if _preparation_animation != "":
+		_move_elapsed += delta
+		if _move_elapsed >= MOVE_SECONDS:
+			_preparation_animation = ""
+			world._refresh_held()
+		else:
+			_update_preparation_animation()
+	if is_instance_valid(_handover):
+		_handover_elapsed += delta
+		var progress := minf(1, _handover_elapsed / MOVE_SECONDS)
+		var destination: Vector3 = world.trailer.to_global(Vector3(1.50, 1.53, -.04))
+		_handover.global_position = _handover_start.lerp(destination, smoothstep(0, 1, progress)) + Vector3.UP * sin(progress * PI) * .14
+		if progress >= 1:
+			_handover.queue_free()
+			_handover = null
+			var order_id := delivering_order
+			delivering_order = 0
+			world.session.serve_order(order_id, _delivery_customer)
+	if is_moving_on_rack():
+		_rack_elapsed += delta
+		var progress := minf(1, _rack_elapsed / MOVE_SECONDS)
+		_rack_prop.global_position = _rack_start.lerp(_rack_end, smoothstep(0, 1, progress)) + Vector3.UP * sin(progress * PI) * .09
+		if progress >= 1:
+			_rack_hand.queue_free()
+			_rack_prop = null
 
 func sync_register() -> void:
 	var payment: Dictionary = world.session.cash.payment

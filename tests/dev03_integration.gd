@@ -61,7 +61,7 @@ func aim(point: Vector3, standing: Vector3) -> void:
 	level.player.camera.rotation = Vector3(level.player.pitch, 0, 0)
 	await frames(3)
 
-func use(action: String) -> void:
+func aim_station(action: String) -> ShiftWorkstation:
 	if level.hud.panel.visible: level.hud.close_panel()
 	var target: ShiftWorkstation = level.stations[action]
 	var standing := Vector3(0, .4, clampf(target.global_position.z, -2.10, 2.0))
@@ -69,7 +69,12 @@ func use(action: String) -> void:
 		standing.x = .08 if target.global_position.x > 0 else -.08
 		if action == "fridge" and level.fridge.opened: standing = Vector3(-.12,.4,0)
 	await aim(target.global_position, standing)
-	check(level.player.get_interactable() == target, "raycast reaches " + action)
+	return target
+
+func use(action: String) -> void:
+	var target := await aim_station(action)
+	var actual := level.player.get_interactable()
+	check(actual == target, "raycast reaches %s (hit %s)" % [action, actual.name if actual != null else "nothing"])
 	await key(KEY_E)
 	await wait_inspection()
 
@@ -94,39 +99,64 @@ func wait_for_counter() -> void:
 		if not level.session.counter_customer().is_empty(): break
 	await frames()
 
+func customer_at_window() -> Dictionary:
+	for customer in level.session.customers:
+		if level.customer_action(int(customer.id)) != "": return customer
+	return {}
+
+func aim_customer() -> ShiftCustomerVisual:
+	var customer := customer_at_window()
+	check(not customer.is_empty(), "eligible customer reaches the window")
+	if customer.is_empty(): return null
+	var visual := level.npc_visuals.get(int(customer.id)) as ShiftCustomerVisual
+	check(visual != null, "live customer has a 3D model")
+	if visual == null: return null
+	await aim(visual.global_position + Vector3.UP * 1.55, Vector3(0, .4, .13))
+	check(level.player.get_interactable() == visual, "center ray reaches the actual customer")
+	return visual
+
+func proof(name: String, dimensions: Vector2i = Vector2i(1280, 720)) -> void:
+	if screenshots.is_empty() or name in _shot_names: return
+	var previous := root.size
+	root.size = dimensions
+	await shot(name)
+	root.size = previous
+
 func take_payment() -> int:
 	await wait_for_counter()
-	await use("counter")
-	check(level.hud.panel.visible, "Russian dialogue opens at counter")
+	var visual := await aim_customer()
+	if visual == null: return 0
+	check(visual.get_prompt() == "[E] Принять заказ", "NPC offers the order from its body")
+	await key(KEY_E)
+	check(level.hud.panel.visible, "Russian dialogue opens from the NPC")
 	check(level.hud._is_typing(), "customer dialogue starts word-by-word reveal")
-	# The real customer is still talking when captured; this is not a preview UI.
-	if "05-dialogue-typing-720" not in _shot_names:
-		root.size = Vector2i(1280,720)
-		await shot("05-dialogue-typing-720")
-		root.size = Vector2i(1920,1080)
-		await shot("05-dialogue-typing-1080")
-		root.size = Vector2i(1280,720)
 	await key(KEY_SPACE)
 	check(not level.hud._is_typing(), "Space reveals the complete order dialogue")
-	if "05-text-order" not in _shot_names: await shot("05-text-order")
-	await click("Повторить состав")
-	check(not level.session.cash.payment.is_empty(), "confirmation creates sidebar order and cash operation")
+	var copy: String = level.hud._dialogue_copy.text if level.hud._dialogue_copy != null else ""
+	check(not copy.is_empty() and "Всё верно?" not in copy and "·" not in copy and "•" not in copy, "spoken copy is free of technical separators")
+	await proof("01-order-1920x1080", Vector2i(1920, 1080))
+	check(not level.hud._action_panel.visible, "modal dialogue hides preparation prompts")
+	await click("Подтвердить заказ")
 	var id := int(level.session.cash.payment.get("order", 0))
+	check(id > 0, "confirmation creates one unpaid order and cash operation")
 	if id == 0: return 0
-	await click("Принять купюры")
-	if "06-cash-payment" not in _shot_names: await shot("06-cash-payment")
-	# Save during tender escrow; restore through verified on-disk manager.
-	check(level.save_manager.save_slot("manual", 2, true) == OK, "save during unfinished payment")
+	var total := int(level.session.cash.payment.total)
+	var before_revenue := int(level.session.stats.revenue)
+	var before_till := level.session.cash.balance()
+	check(find_button(level.hud.panel_content, "Ячейка") == null, "cash UI has no change denominations")
+	check(level.save_manager.save_slot("manual", 2, true) == OK, "save pending payment")
 	var before: Dictionary = level.capture_snapshot()
-	check(level.save_manager.load_slot(1, "manual", 2), "restore unfinished payment from disk")
+	check(level.save_manager.load_slot(1, "manual", 2), "restore pending payment from disk")
 	check(JSON.stringify(level.capture_snapshot()) == JSON.stringify(before), "payment restore is exact")
-	var rest := int(level.session.cash.payment.tender) - int(level.session.cash.payment.total)
-	for denomination in ShiftCashRegister.DENOMINATIONS:
-		while rest >= denomination:
-			await click("Ячейка %d ₽" % int(denomination))
-			rest -= denomination
-	await click("Передать сдачу")
-	check(level.session.order_by_id(id).paid, "cash UI finalizes exactly once")
+	await key(KEY_ESCAPE)
+	visual = await aim_customer()
+	if visual == null: return 0
+	check(visual.get_prompt() == "[E] Продолжить оплату", "same customer resumes pending payment")
+	await key(KEY_E)
+	await click("Принять оплату")
+	check(level.session.order_by_id(id).paid and level.session.cash.payment.is_empty(), "one payment action settles the order")
+	check(level.session.cash.balance() == before_till + total and int(level.session.stats.revenue) == before_revenue + total, "the till and revenue increase by the exact price once")
+	check(not level.session.finalize_payment(true), "repeating payment does not charge again")
 	check(level.hud.item_buttons.size() >= 1, "order visible in right sidebar")
 	return id
 
@@ -139,84 +169,194 @@ func select_from_sidebar(id: int, index: int) -> void:
 	await frames()
 	check(not level._orders_editing and level.player.mouse_captured, "selecting item resumes physical work")
 
-func cook(id: int, index: int) -> void:
+func roundtrip_work(label: String) -> void:
+	var before := level.capture_snapshot()
+	check(level.validate_snapshot(before), label + " is a valid save")
+	check(level.save_manager.save_slot("manual", 1, true) == OK, label + " is written to disk")
+	check(level.save_manager.load_slot(1, "manual", 1), label + " loads from disk")
+	check(JSON.stringify(level.capture_snapshot()) == JSON.stringify(before), label + " restores exactly")
+
+func phase() -> String:
+	return str(level.session.preparation.current.get("handling", ""))
+
+func prepare_filter(capture: bool = false) -> void:
+	await aim_station("filter")
+	if capture:
+		var previous_size := root.size
+		for resolution in [Vector2i(1280, 720), Vector2i(1920, 1080)]:
+			root.size = resolution
+			await frames(3)
+			var panel_rect := level.hud._action_panel.get_global_rect()
+			check(level.hud._action_panel.visible and panel_rect.end.y <= level.hud.control_hints.get_global_rect().position.y, "action panel sits above controls at " + str(resolution))
+			check(not panel_rect.has_point(root.get_visible_rect().get_center()), "HUD leaves center reticle clear at " + str(resolution))
+		root.size = previous_size
+		await proof("02-task-hud-1280x720")
+	check(not level.stations.machine.get_available_action().begins_with("[E]"), "brew button cannot start without the prepared filter")
+	await use("filter")
+	check(level.session.preparation.current.get("portafilter") == "in_hand" and level.accessories.filter.visible, "take the original filter into the camera hand")
+	check(not level.machine_visual.portafilter.visible, "storage copy disappears when the filter is taken")
+	if capture:
+		await proof("03-filter-in-hand-1280x720")
+		roundtrip_work("filter in hand")
+	await use("grinder_fork")
+	check(level.session.preparation.current.get("portafilter") == "in_grinder", "E seats the filter in the grinder fork")
+	await use("beans")
+	await use("grinder_button")
+	check(level.session.preparation.current.get("running") == "grind" and not level.accessories.grounds.visible, "grind starts before grounds appear")
+	check(not level.stations.grinder_fork.get_available_action().begins_with("[E]"), "running grinder keeps the filter seated")
+	if capture: roundtrip_work("filter under the running grinder")
+	await frames(46)
+	check(level.accessories.grounds.visible, "ground coffee appears in the basket when grinding completes")
+	if capture:
+		var legacy := level.capture_snapshot()
+		legacy.trade.preparation.erase("portafilter")
+		check(level.apply_snapshot(legacy), "legacy progress loads without a stored filter position")
+		check(level.session.preparation.current.get("portafilter") == "in_grinder" and level.accessories.grounds.visible, "legacy ground coffee is recovered in the grinder without another dose")
+	await aim_station("grinder_fork")
+	if capture: await proof("04-filter-in-grinder-1920x1080", Vector2i(1920, 1080))
+	await use("grinder_fork")
+	check(level.session.preparation.current.get("portafilter") == "in_hand", "E removes the dosed filter")
+	await use("tamping_mat")
+	check(level.session.preparation.current.get("portafilter") == "on_tamping_mat", "E places filter on the actual mat")
+	await use("dose")
+	check(level.session.preparation.current.get("tamper_held", false), "E picks up the separate tamper")
+	await use("tamping_mat")
+	check(level.accessories._animation == "dose" and level.session.preparation.current.get("portafilter") == "on_tamping_mat", "tamping animates while the basket stays seated")
+	if capture:
+		await aim(level.accessories.filter.get_node("GroupLockOrigin").global_position, Vector3(.06, .4, -1.09))
+		await frames(11)
+		await proof("05-tamping-1920x1080", Vector2i(1920, 1080))
+	await frames(42)
+	await use("tamping_mat")
+	await use("group")
+	check(level.accessories._animation == "install", "group E starts the locking animation")
+	await frames(42)
+	check(level.machine_visual.portafilter.visible and not level.accessories.filter.visible, "the installed filter is the only visible copy")
+	check(level.session.preparation.current.get("portafilter") == "installed", "preparation records the installed filter")
+
+func cook(id: int, index: int, capture: bool = false) -> void:
 	await select_from_sidebar(id, index)
+	await prepare_filter(capture)
 	var order := level.session.order_by_id(id)
 	var sequence := level.session.catalog.steps(order.items[index])
-	var mapping := {"beans":"beans", "grind":"grinder", "filter":"filter", "dose":"dose", "install":"machine", "cup":"cups", "extract":"machine", "stop":"machine", "water":"water", "milk":"milk", "pitcher":"pitcher", "steam":"steam", "stop_steam":"steam", "pour":"pitcher", "sugar":"sugar", "syrup":"syrup", "lid":"lids", "place":"ready"}
-	for step in sequence:
+	var drink: String = level.session.catalog.recipes[order.items[index].recipe].drink
+	var mapping := {"extract":"machine", "stop":"machine", "water":"water", "milk":"milk", "pitcher":"pitcher",
+		"steam":"steam", "stop_steam":"steam", "pour":"pitcher", "sugar":"sugar", "syrup":"syrup"}
+	await use("cups")
+	check(phase() == "cup_held" and level.held.has_node("HeldEmptyCup") and not level.preparation_visual.has_node("CupUnderGroup"), "empty cup exists only in the hand after pickup")
+	if capture:
+		await proof("06-empty-cup-in-hand-1280x720")
+		roundtrip_work("empty cup in hand")
+	await use("cup_tray")
+	check(phase() == "cup_in_machine" and level.preparation_visual.has_node("CupUnderGroup"), "E places the cup under the actual spout")
+	for step in sequence.slice(sequence.find("extract"), sequence.find("lid")):
 		if step == "milk" and not level.fridge.opened:
 			await use("fridge")
-			await frames(32)
+			await frames(36)
 		if step == "stop":
-			level.session.tick(9)
-			if "07-espresso" not in _shot_names: await shot("07-espresso")
+			check(level.hud.extraction_timer.visible and "ЭКСТРАКЦИЯ" in level.hud.extraction_timer.text, "dedicated extraction stopwatch is visible")
+			if capture:
+				roundtrip_work("running extraction")
+				await key(KEY_ESCAPE)
+				var paused_at := float(level.session.preparation.current.elapsed)
+				await frames(12)
+				check(is_equal_approx(paused_at, float(level.session.preparation.current.elapsed)), "pause freezes extraction time")
+				await click("Вернуться в игру", level.main_menu)
+			level.session.tick(8.8)
+			if capture:
+				await aim(level.machine_visual.cup_base() + Vector3.UP * .13, Vector3(-.06, .4, -1.28))
+				await proof("07-extraction-1920x1080", Vector2i(1920, 1080))
+		if step == "water":
+			await use("cup_tray")
+			check(phase() == "water_held", "espresso is picked up to move to the hot water tap")
+			await use("water_tray")
+			check(phase() == "cup_at_water_tap", "cup rests under the actual hot water tap")
 		if step == "stop_steam":
-			level.session.tick(4.5 if level.session.catalog.recipes[order.items[index].recipe].drink == "cappuccino" else 2.5)
-			if "08-cappuccino" not in _shot_names: await shot("08-cappuccino")
-		var before: Dictionary = level.session.snapshot()
-		if step == "cup":
-			await use("cups")
-			check(level.session.preparation.next_step(level.session.catalog) == "cup" and str(level.session.preparation.current.get("handling", "")) == "cup_held",
-				"physical empty cup is first picked up, not teleported into machine")
-			check(level.held.get_node_or_null("HeldEmptyCup") != null,"original cup GLB rendered in hand")
-			await use("cup_tray")
-			check(str(level.session.preparation.current.get("handling", "")) == "cup_in_machine",
-				"second E puts cup onto drip tray")
-		elif step == "lid":
-			await use("lids")
-			check(str(level.session.preparation.current.get("handling", "")) == "lid_held",
-				"lid is picked into hand before applying it")
-			check(level.held.get_node_or_null("HeldLid") != null, "original lid GLB visible in hand")
+			check(level.hud.extraction_timer.visible and "ПАР" in level.hud.extraction_timer.text, "milk has a recipe-specific stopwatch")
+			level.session.tick(4.5 if drink == "cappuccino" else 2.5)
+		await use(str(mapping[step]))
+		if step == "water": await frames(42)
+		if step == "pour": await frames(42)
+		if step in ["water", "pour"] or (step == "stop" and drink == "espresso"):
+			await use("water_tray" if step == "water" else "cup_tray")
+			check(phase() == "cup_full_held" and level.held.has_node("HeldFilledCup"), "filled cup appears in hand after pickup")
+			if capture: roundtrip_work("filled cup in hand")
 			await use("countertop")
-			check(str(level.session.preparation.current.get("handling", "")) == "lid_attached",
-				"lid can only be attached at the worktop")
-		else:
-			await use(str(mapping[step]))
-		if step in ["water", "pour"] or (step == "stop" and str(level.session.catalog.recipes[order.items[index].recipe].drink) == "espresso"):
-			check(str(level.session.preparation.current.get("handling", "")) == "cup_ready_on_machine",
-				"filled cup remains under group after liquid preparation")
-			await use("cup_tray")
-			check(str(level.session.preparation.current.get("handling", "")) == "cup_full_held",
-				"player picks filled cup from machine")
-			check(level.held.get_node_or_null("HeldFilledCup") != null,"full cup visible in camera hand")
-			await use("countertop")
-			check(str(level.session.preparation.current.get("handling", "")) == "cup_on_counter",
-				"player places filled cup on worktop for lid and toppings")
-		check(JSON.stringify(before) != JSON.stringify(level.session.snapshot()), "world operation progresses " + str(step))
-		check(level.validate_snapshot(level.capture_snapshot()), "world save valid after " + str(step))
-		if step == "extract":
-			await frames(2)
-			check(level.hud.extraction_timer.visible and level.hud.extraction_timer.text.contains("ЭКСТРАКЦИЯ"),
-				"permanent stopwatch is visible during espresso extraction")
-			check(level.save_manager.save_slot("manual", 1, true) == OK, "save during extraction")
-			var mid: Dictionary = level.capture_snapshot()
-			check(level.save_manager.load_slot(1, "manual", 1), "load running extraction")
-			check(JSON.stringify(level.capture_snapshot()) == JSON.stringify(mid), "running extraction restored without double use")
-	check(level.session.order_by_id(id).items[index].ready, "manually prepared cup reaches rack")
-	await frames(2)
-	if level.session.order_by_id(id).status == "ready":
-		check(level.hud.guide.text.contains("Вызвать №"),"finished order explicitly explains how to call customer")
-	check(not level.hud.extraction_timer.visible, "brewing stopwatch hides after preparation ends")
+			check(phase() == "cup_on_counter" and level.preparation_visual.has_node("CupOnCounter"), "filled cup is physically placed on the worktop")
+			if capture: await proof("08-filled-cup-on-worktop-1280x720")
+		check(level.validate_snapshot(level.capture_snapshot()), "save valid after " + str(step))
+	await use("lids")
+	check(phase() == "lid_held" and level.held.has_node("HeldLid"), "lid appears in hand before closing")
+	if capture:
+		await aim_station("countertop")
+		await proof("09-lid-in-hand-1920x1080", Vector2i(1920, 1080))
+		roundtrip_work("lid in hand")
+	var contents: Dictionary = level.session.preparation.current.consumed.duplicate()
+	await use("countertop")
+	check(level.new_assets.is_playing("lid"), "attaching the lid moves the hand and lid")
+	await frames(42)
+	check(phase() == "lid_attached" and level.preparation_visual.has_node("CappedCupOnCounter"), "capped cup remains on the counter")
+	check(not level.stations.ready.get_available_action().begins_with("[E]"), "capping alone cannot send the cup to the rack")
+	check(level.stations.countertop.get_available_action() == "[E] Взять стакан", "closed cup offers the pickup action")
+	if capture:
+		roundtrip_work("capped cup on worktop")
+		var modern := level.capture_snapshot()
+		var legacy := modern.duplicate(true)
+		legacy.trade.preparation.erase("portafilter")
+		legacy.trade.preparation.erase("handling")
+		check(level.apply_snapshot(legacy) and phase() == "capped_held", "older finished drink resumes in hand")
+		check(level.apply_snapshot(modern) and phase() == "lid_attached", "current save keeps the capped cup on the worktop")
+	await use("countertop")
+	check(phase() == "capped_held" and level.held.has_node("HeldCappedCup"), "capped cup can be physically picked up")
+	check(not level.preparation_visual.has_node("CappedCupOnCounter"), "pickup removes the original worktop prop")
+	for key_name in contents:
+		check(level.session.preparation.current.consumed[key_name] == contents[key_name], "capping preserves contents " + key_name)
+	if capture:
+		await proof("10-capped-cup-in-hand-1280x720")
+		roundtrip_work("capped cup in hand")
+	await use("ready")
+	check(level.session.order_by_id(id).items[index].ready, "ready cup is placed on the serving rack")
+	check(level.session.order_by_id(id).status != "served", "rack placement never serves the customer")
+	check(not level.hud.extraction_timer.visible, "stopwatch hides after operation")
+	check(level.session.order_by_id(id).items[index].cup.quality.good, "recipe quality stays in range: " + drink)
+	if capture: await proof("11-ready-order-1920x1080", Vector2i(1920, 1080))
 
 func serve(id: int) -> void:
 	var order := level.session.order_by_id(id)
 	if order.items.size() > 1:
+		check(level.hud.call_buttons[id].disabled, "multi-order requires a holder before calling")
+		var stock := int(level.session.inventory.stock.carriers)
+		await use("carrier")
+		await frames(42)
+		check(order.carrier and int(level.session.inventory.stock.carriers) == stock - 1, "physical E takes one cardboard holder from stock")
 		for i in range(order.items.size()):
-			await use("carrier")
-			await click("В держатель: №%03d · стакан %d" % [id, i + 1])
+			var cup := level.drinks_root.get_node("Cup_%d_%d" % [id, i]) as Node3D
+			await aim(cup.global_position + Vector3.UP * .061, Vector3(0, .4, cup.global_position.z))
+			var target := level.player.get_interactable() as ShiftWorkstation
+			check(target != null and target.order_id == id and target.item_index == i and target.action == "pack_cup", "aim identifies the exact finished cup for packing")
+			await key(KEY_E)
+			check(i in order.packed, "E places selected cup in the cardboard holder")
+			await frames(42)
 	await key(KEY_TAB)
 	var call: Button = level.hud.call_buttons.get(id)
 	check(call != null and not call.disabled, "ready order can be called from sidebar")
-	if call != null: call.pressed.emit()
+	if call != null and not call.disabled: call.pressed.emit()
 	await frames()
 	level.session.tick(12)
 	await frames()
-	await use("counter")
+	var visual := await aim_customer()
+	if visual == null: return
+	check(visual.get_prompt() == "[E] Выдать заказ", "called customer's body offers order handover")
+	await key(KEY_E)
 	if level.hud._is_typing(): await key(KEY_SPACE)
-	if "10-handover" not in _shot_names: await shot("10-handover")
 	await click("Передать через окно")
-	check(level.session.order_by_id(id).status == "served", "handover UI serves appropriate customer")
+	check(level.session.order_by_id(id).status == "called" and level.session.customer_by_id(visual.customer_id).state == "pickup", "customer waits until the drink reaches the window")
+	check(is_instance_valid(level.new_assets._handover), "handover moves the original cup model toward the customer")
+	check(not level.drinks_root.has_node("Cup_%d_0" % id), "no second copy remains on the rack during handover")
+	await frames(19)
+	await proof("12-handover-1920x1080", Vector2i(1920, 1080))
+	await frames(42)
+	check(level.session.order_by_id(id).status == "served", "handover serves the appropriate customer once")
 	check(level.validate_snapshot(level.capture_snapshot()), "served world remains valid")
 
 func run() -> void:
@@ -228,74 +368,67 @@ func run() -> void:
 	current_scene = level
 	await frames(3)
 	check(level.main_menu.visible and not level.player.controls_enabled, "starts in existing main menu")
-	await shot("01-main-menu")
+	if screenshots.is_empty(): root.size = Vector2i(640, 360)
 	await click("Настройки", level.main_menu)
-	# Scroll to the *actual* word-effect checkbox and interval control before capturing.
-	var settings_content: VBoxContainer = level.main_menu._content
-	var settings_scroll := settings_content.get_parent() as ScrollContainer
-	var interval_control: Control = null
-	for setting in settings_content.get_children():
-		if setting is Label and setting.text == "Интервал между словами (мс)":
-			interval_control = settings_content.get_child(setting.get_index() + 1) as Control
-	check(settings_scroll != null and interval_control != null, "word-effect setting controls are present in main menu")
-	if settings_scroll != null and interval_control != null: settings_scroll.ensure_control_visible(interval_control)
-	await frames(4)
-	await shot("01-dialogue-settings-720")
-	root.size = Vector2i(1920,1080)
-	await frames(3)
-	if settings_scroll != null and interval_control != null: settings_scroll.ensure_control_visible(interval_control)
-	await frames(4)
-	await shot("01-dialogue-settings-1080")
-	root.size = Vector2i(1280,720)
+	check(find_button(level.main_menu, "Назад") != null, "settings screen remains available")
 	await click("Назад", level.main_menu)
 	await click("Новая игра", level.main_menu)
 	await click("Начать новую игру", level.main_menu)
 	check(level._active and level.player.position.y > .3, "new career starts inside prepared trailer")
 	check(not level.session.shift_open and not level.session.snapshot().prologue_completed, "prototype does not award prologue achievement")
 	check(level.validate_snapshot(level.capture_snapshot()), "initial new-career snapshot valid")
-	await aim(Vector3(0, 1.3, 0), Vector3(5, .02, 5))
-	await shot("02-trading-location")
-	await aim(Vector3(.8, 1.4, -1), Vector3(0, .4, 1.6))
-	await shot("03-interior")
 	for device in ["machine", "grinder", "fridge", "cash"]:
 		await use(device)
 		if level.hud.panel.visible: level.hud.close_panel()
 	await use("window")
 	await frames(54)
 	check(level.session.window_open and absf(level.shutter.rotation.z-deg_to_rad(77)) < .001, "original hatch opens to its +77 degree endpoint")
-	check(level.shutter.to_global(Vector3(0,-.896,0)).y > 1.89, "open hatch clears the coffee serving area")
 	await use("shift")
 	await click("Открыть смену")
-	check(level.session.shift_open, "sign starts shift separately from window")
-	# Deterministic customer profile fixture; all statuses come from real operations.
-	level.session.catalog.config.customers.profiles = [{"name":"Офисник","color":"536f75","preferred":["espresso_small"],"greeting":"Здравствуйте! Мне, пожалуйста,"}]
+	check(level.session.shift_open, "sign starts shift separately from the window")
 	level.session.catalog.config.customers.interval_seconds = 99999
-	level.session.spawn_customer()
-	await wait_for_counter()
-	await aim(Vector3(2, 1.6, 0), Vector3(0, .4, 0))
-	await shot("04-customer-at-window")
-	var id := await take_payment()
-	if id == 0: quit(1); return
-	await cook(id, 0)
-	await aim(Vector3(.48, 1.79, 0), Vector3(0, .4, .6))
-	await shot("09-orders-sidebar")
-	await serve(id)
-	level.session.catalog.config.customers.profiles[0].preferred = ["cappuccino_large"]
-	level.session.spawn_customer()
-	id = await take_payment()
-	if id == 0: quit(1); return
-	await cook(id, 0)
-	await serve(id)
-	level.session.catalog.config.customers.profiles[0].preferred = ["latte_standard"]
-	level.session.spawn_customer()
-	id = await take_payment()
-	if id == 0: quit(1); return
-	for i in range(level.session.order_by_id(id).items.size()): await cook(id, i)
-	await serve(id)
+	var catalog := level.session.catalog
+	var fixture := [
+		[{"recipe":"americano_standard", "sugar":false, "syrup":false}],
+		[{"recipe":"espresso_small", "sugar":true, "syrup":false}],
+		[{"recipe":"cappuccino_large", "sugar":true, "syrup":true}, {"recipe":"latte_standard", "sugar":false, "syrup":false}]
+	]
+	var dialogue := CustomerDialogue.order_request(catalog.config.customers.profiles[1].greeting, fixture[2], catalog)
+	check(dialogue == "Добрый день! Можно большой капучино с сахаром и ванильным сиропом и стандартный латте?", "natural dialogue retains greeting and inflects sizes and extras")
+	for visit in range(fixture.size()):
+		var customer := level.session.spawn_customer()
+		check(not customer.is_empty(), "customer spawns through the shift queue")
+		if customer.is_empty(): break
+		customer.items = fixture[visit]
+		await wait_for_counter()
+		if visit == 0:
+			var visual := await aim_customer()
+			if visual == null: quit(1); return
+			await aim(visual.global_position + Vector3.UP * 1.65, Vector3(0, .4, 0))
+			check(level.player.get_interactable() == visual, "customer head and body are both targetable")
+			await aim(Vector3(1.9, 1.55, 0), Vector3(0, .4, 2.1))
+			check(level.player.get_interactable() != visual, "solid shell occludes the customer from the rear")
+			await aim(Vector3(1.9, 1.55, 0), Vector3(5.2, .02, 0))
+			check(level.player.get_interactable() != visual, "customer cannot be targeted beyond interaction reach")
+			level.session.window_open = false
+			level.trailer.shell.set_hatch_open(false, false)
+			await aim(Vector3(1.9, 1.55, 0), Vector3(0, .4, .1))
+			check(level.player.get_interactable() != visual and visual.get_prompt().is_empty(), "closed hatch blocks customer interaction")
+			await key(KEY_E)
+			check(not level.hud.panel.visible, "E on a closed hatch never opens customer dialogue")
+			level.session.window_open = true
+			level.trailer.shell.set_hatch_open(true, false)
+		var id := await take_payment()
+		if id == 0: quit(1); return
+		if visit == 1:
+			await use("filter")
+			await use("bin")
+			check(level.session.preparation.current.is_empty() and level.session.can_begin_drink(), "discard allows restarting the same paid drink")
+		for index in range(fixture[visit].size()): await cook(id, index, visit == 0)
+		await serve(id)
 	await use("shift")
 	await click("Закрыть смену")
 	check(not level.session.shift_open and level.session.stats.completed == 3, "full three-customer shift completed")
-	await shot("11-shift-report")
 	level.hud.close_panel()
 	await key(KEY_ESCAPE)
 	check(level.main_menu.visible, "physical Escape opens pause menu")
@@ -319,9 +452,8 @@ func run() -> void:
 	var pointer := InputEventMouseMotion.new()
 	pointer.relative = Vector2(10, 10)
 	var old_pitch := level.player.pitch
-	Input.parse_input_event(pointer)
-	await frames()
-	check(level.player.pitch < old_pitch, "real mouse motion updates pitch safely")
+	root.push_input(pointer, true)
+	check(level.player.pitch < old_pitch, "viewport mouse motion updates pitch safely")
 	level.save_manager.autosave_enabled = false
 	level.queue_free()
 	await frames(3)

@@ -179,7 +179,8 @@ func run() -> void:
 	check(not register.drawer_open,"cash UI closes animated drawer after settlement")
 	if id > 0:
 		await select_from_sidebar(id,0)
-		for action in ["beans","grinder","filter","dose","machine","cups"]: await use(action)
+		await prepare_filter()
+		await use("cups")
 		assert_cup(level.held.get_node_or_null("HeldEmptyCup"),false)
 		check(level.preparation_visual.get_node_or_null("CupUnderGroup") == null, "cup stays in player's hand before placement")
 		await use("cup_tray")
@@ -216,6 +217,7 @@ func run() -> void:
 		await use("lids")
 		check(level.held.get_node_or_null("HeldLid") != null,"lid first appears in player's hand")
 		await use("countertop")
+		await frames(42)
 		assert_cup(level.preparation_visual.get_node_or_null("CappedCupOnCounter"),true)
 		check(level.preparation_visual.get_node_or_null("CupUnderGroup") == null,"cup is physically transferred to worktop before capping")
 		await view(Vector3(.73,1.52,-1.47),Vector3(-.10,.4,-1.46),75)
@@ -242,6 +244,8 @@ func run() -> void:
 		level.resume_game()
 		await frames(3)
 		assert_cup(level.preparation_visual.get_node_or_null("CappedCupOnCounter"),true)
+		await use("countertop")
+		assert_cup(level.held.get_node_or_null("HeldCappedCup"),true)
 		await use("ready")
 		var finished: Node3D = level.drinks_root.get_node("Cup_%d_0" % id)
 		assert_cup(finished,true)
@@ -253,7 +257,7 @@ func run() -> void:
 		await serve(id)
 		check(level.drinks_root.get_child_count() == 0,"handed-over cup disappears from rack")
 		check(level.session.order_by_id(id).items[0].cup.quality.good,"new visuals preserve latte quality")
-	check(level.session.stats.completed == 1,"latte, cash, change and customer handover complete")
+	check(level.session.stats.completed == 1,"latte, payment and customer handover complete")
 	for resolution in [Vector2i(1280,720),Vector2i(1920,1080)]:
 		root.size = resolution
 		await frames(2)
