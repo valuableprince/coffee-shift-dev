@@ -55,8 +55,26 @@ func run() -> void:
 	level.music.attach_radio(receiver, Vector3.ZERO, speaker)
 	check(receiver.find_children("*", "AudioStreamPlayer3D", true, false).size() == 1 and level.music._radio == speaker, "T06: repeated E and attachment keep exactly one emitter")
 	check(speaker.playing and level.music.radio_on and level.music.radio_index == track, "T06: re-enable resumes same broadcast without restarting")
-	check(speaker.attenuation_model == AudioStreamPlayer3D.ATTENUATION_INVERSE_DISTANCE and speaker.unit_size == 1.5 and speaker.max_distance == 8, "T07: emitter uses distance falloff and finite outdoor range")
-	# Real near/far output levels are measured in the separate system recording.
+	check(speaker.attenuation_model == AudioStreamPlayer3D.ATTENUATION_INVERSE_DISTANCE, "T07: sound stays positional, not global BGM")
+	check(is_equal_approx(speaker.unit_size, Audio01Director.RADIO_UNIT_SIZE) and is_equal_approx(speaker.max_distance, Audio01Director.RADIO_MAX_DISTANCE), "T07: new 3D range reaches every work station")
+	check(is_equal_approx(speaker.volume_db, Audio01Director.RADIO_BASE_DB) and is_equal_approx(speaker.max_db, Audio01Director.RADIO_MAX_DB), "T07: loudness cap prevents spikes near receiver")
+	check(is_equal_approx(speaker.attenuation_filter_cutoff_hz, Audio01Director.RADIO_FILTER_CUTOFF_HZ) and is_equal_approx(speaker.attenuation_filter_db, Audio01Director.RADIO_FILTER_DB), "T07: distant radio frequencies remain intelligible")
+	# Camera position at the espresso worktop, using the actual placed speaker,
+	# not a guessed centre point or a synthetic sound source.
+	var espresso_listener := Vector3(.10, 2.02, -1.52)
+	var espresso_distance := speaker.global_position.distance_to(espresso_listener)
+	var near_distance := 1.0
+	var outside_distance := 8.0
+	var espresso_db := minf(speaker.volume_db + linear_to_db(speaker.unit_size / espresso_distance), speaker.max_db)
+	var near_db := minf(speaker.volume_db + linear_to_db(speaker.unit_size / near_distance), speaker.max_db)
+	var outside_db := minf(speaker.volume_db + linear_to_db(speaker.unit_size / outside_distance), speaker.max_db)
+	var old_espresso_db := -8.0 + linear_to_db(1.5 / espresso_distance)
+	check(espresso_distance > 3.5 and espresso_distance < 5.0, "T07: real radio-to-coffee-machine spacing near 4 m")
+	check(espresso_db >= -9.0 and espresso_db - old_espresso_db > 7.0, "T07: coffee-machine listening level improved by at least 7 dB")
+	check(near_db - espresso_db < 5.0, "T07: music remains evenly audible throughout trailer")
+	check(near_db - outside_db >= 6.0, "T07: music naturally falls off outdoors")
+	check(speaker.max_distance > outside_distance and speaker.max_distance <= 12.0, "T07: radio still has a finite outdoor range")
+	# Actual PCM loudness is for later manual/system-audio verification, not headless CI.
 	check(level.save_manager.save_slot("manual", 1, true) == OK, "T08: ON saved to actual career file")
 	level.music.toggle_radio()
 	check(level.save_manager.load_slot(1, "manual", 1), "T08: save loads through existing envelope/validation")
