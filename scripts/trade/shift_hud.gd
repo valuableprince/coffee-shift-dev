@@ -10,6 +10,7 @@ var reticle: InteractionReticle
 var message: Label
 var guide: Label
 var extraction_timer: Label
+var next_step_hint: Label
 var tasks: EquipmentTaskList
 var panel: PanelContainer
 var panel_content: VBoxContainer
@@ -84,6 +85,19 @@ func _ready() -> void:
 	extraction_timer.offset_bottom = 94
 	extraction_timer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	extraction_timer.hide()
+	# Pinned above the scene rather than inside the scrolling orders list.
+	# This line persists for the entire step (also during long pauses).
+	next_step_hint = _label(Vector2.ZERO, 17)
+	next_step_hint.name = "NextStepHint"
+	next_step_hint.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	next_step_hint.offset_left = -325
+	next_step_hint.offset_right = 325
+	next_step_hint.offset_top = 105
+	next_step_hint.offset_bottom = 152
+	next_step_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	next_step_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	next_step_hint.add_theme_color_override("font_color", Color("f0dcab"))
+	next_step_hint.hide()
 	reticle = InteractionReticle.new()
 	root.add_child(reticle)
 	hint = reticle.hint
@@ -547,12 +561,15 @@ func refresh(session: CoffeeShiftSession) -> void:
 		"СМЕНА ОТКРЫТА" if session.accepting else ("ЗАКАНЧИВАЕМ СМЕНУ" if session.shift_open else "СМЕНА ЗАКРЫТА"), session.cash.balance(), session.paid_orders().size()]
 	guide.text = ""
 	extraction_timer.hide()
+	next_step_hint.hide()
 	if not session.preparation.current.is_empty():
 		var w: Dictionary = session.preparation.current
 		var next_step := session.preparation.next_step(session.catalog)
 		var instruction := ShiftWorld.handling_hint(w)
 		if instruction.is_empty():
 			instruction = str(ShiftWorld.STEP_HINTS.get(next_step, ""))
+		next_step_hint.text = instruction
+		next_step_hint.show()
 		guide.text = "ЗАКАЗ №%03d\n%s\n%s" % [int(w.order), session.catalog.caption(w.item), instruction]
 		if w.running != "":
 			var recipe: Dictionary = session.catalog.recipes[w.recipe]
@@ -566,8 +583,12 @@ func refresh(session: CoffeeShiftSession) -> void:
 		var order := session.order_by_id(session.selected_order)
 		if not order.is_empty() and session.selected_item < order.items.size():
 			if order.status == "ready":
+				next_step_hint.text = "Заказ готов! [Tab] → Вызвать №%03d" % int(order.id)
+				next_step_hint.show()
 				guide.text = "ЗАКАЗ №%03d ГОТОВ!\n[Tab] → Вызвать №%03d\nДождитесь покупателя у окна и нажмите E для выдачи." % [int(order.id), int(order.id)]
 			elif order.status == "called":
+				next_step_hint.text = "Дождитесь покупателя у окна → [E] → Передать заказ"
+				next_step_hint.show()
 				guide.text = "ЗАКАЗ №%03d ВЫЗВАН\nДождитесь покупателя у окна.\n[E] у окна → Передать через окно." % int(order.id)
 			else:
 				guide.text = "Выбран №%03d\n%s\nНачните с пакета кофе слева." % [session.selected_order, session.catalog.caption(order.items[session.selected_item])]
