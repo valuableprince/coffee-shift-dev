@@ -400,6 +400,21 @@ func _set_cup_handling(phase: String, instruction: String) -> void:
 	session.notify(instruction)
 
 
+# Advance recipe and prop state atomically for save checkpoint hooks.
+# prepare_action() emits its checkpoint before returning; therefore the
+# physical placement must already be valid when that checkpoint is taken.
+func _advance_cup_recipe(action: String, phase: String, info: String) -> void:
+	var work: Dictionary = session.preparation.current
+	if work.is_empty(): return
+	var previous := str(work.get("handling", ""))
+	work["handling"] = phase
+	if session.prepare_action(action):
+		_set_cup_handling(phase, info)
+	else:
+		work["handling"] = previous
+		session.changed.emit()
+
+
 func _interact_cup_handling(action: String, next: String) -> bool:
 	var work: Dictionary = session.preparation.current
 	if work.is_empty(): return false
@@ -407,8 +422,7 @@ func _interact_cup_handling(action: String, next: String) -> bool:
 	match phase:
 		"cup_held":
 			if action == "cup_tray":
-				if session.prepare_action("cup"):
-					_set_cup_handling("cup_in_machine", "Стакан под группой. Запустите экстракцию [E]")
+				_advance_cup_recipe("cup", "cup_in_machine", "Стакан под группой. Запустите экстракцию [E]")
 				return true
 		"cup_ready_on_machine":
 			if action == "cup_tray":
@@ -424,8 +438,7 @@ func _interact_cup_handling(action: String, next: String) -> bool:
 				return true
 		"lid_held":
 			if action == "countertop":
-				if session.prepare_action("lid"):
-					_set_cup_handling("lid_attached", "Крышка надета. Поставьте готовый стакан на выдачу")
+				_advance_cup_recipe("lid", "lid_attached", "Крышка надета. Поставьте готовый стакан на выдачу")
 				return true
 	# Do not silently consume items or skip a physical transfer via E on
 	# the old stock or machine target. Radio, fridge and other props remain free.
@@ -615,9 +628,9 @@ func interact_station(station: ShiftWorkstation) -> void:
 			else: new_assets.register.toggle_drawer()
 		"machine":
 			if next in ["install", "extract", "stop"]:
-				var completed := session.prepare_action(next)
-				if completed and next == "stop" and session.catalog.recipes[session.preparation.current.recipe].drink == "espresso":
-					_set_cup_handling("cup_ready_on_machine", "Эспрессо готов. Возьмите стакан из кофемашины")
+				if next == "stop" and str(session.preparation.current.get("handling", "")) == "cup_in_machine" and session.catalog.recipes[session.preparation.current.recipe].drink == "espresso":
+					_advance_cup_recipe("stop", "cup_ready_on_machine", "Эспрессо готов. Возьмите стакан из кофемашины")
+				else: session.prepare_action(next)
 			else: session.notify("Кофемашина готова. " + str(STEP_HINTS.get(next, "Выберите оплаченный заказ")))
 		"grinder":
 			if next == "grind": session.prepare_action("grind")
@@ -632,14 +645,14 @@ func interact_station(station: ShiftWorkstation) -> void:
 			if next == "dose": accessories.play("dose")
 			session.prepare_action(action)
 		"beans", "filter", "water", "sugar", "syrup":
-			var completed := session.prepare_action(action)
-			if completed and action == "water":
-				_set_cup_handling("cup_ready_on_machine", "Американо готов. Возьмите стакан из кофемашины")
+			if action == "water" and next == "water" and str(session.preparation.current.get("handling", "")) == "cup_in_machine":
+				_advance_cup_recipe("water", "cup_ready_on_machine", "Американо готов. Возьмите стакан из кофемашины")
+			else: session.prepare_action(action)
 		"pitcher":
 			if next == "pour": accessories.play("pour")
-			var completed := session.prepare_action("pour" if next == "pour" else "pitcher")
-			if completed and next == "pour":
-				_set_cup_handling("cup_ready_on_machine", "Напиток готов. Возьмите стакан из кофемашины")
+			if next == "pour" and str(session.preparation.current.get("handling", "")) == "cup_in_machine":
+				_advance_cup_recipe("pour", "cup_ready_on_machine", "Напиток готов. Возьмите стакан из кофемашины")
+			else: session.prepare_action("pour" if next == "pour" else "pitcher")
 		"steam": session.prepare_action("stop_steam" if next == "stop_steam" else "steam")
 		"cups": session.prepare_action("cup")
 		"lids": session.prepare_action("lid")
