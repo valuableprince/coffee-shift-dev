@@ -25,7 +25,7 @@ func run() -> void:
 	check(junctions.get_child_count() == 76, "four double-wall returns, four plinth corners and 64 ceiling connectors")
 	for side in ["L", "R"]:
 		for end in ["F", "R"]:
-			var tag := side + "_" + end
+			var tag: String = str(side) + "_" + str(end)
 			var end_return := junctions.get_node_or_null("EndReturn_" + tag)
 			var side_return := junctions.get_node_or_null("SideReturn_" + tag)
 			var base_return := junctions.get_node_or_null("BaseReturn_" + tag)
