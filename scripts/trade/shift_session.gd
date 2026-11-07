@@ -589,6 +589,25 @@ func _valid_work(w: Dictionary, order: Dictionary, index: int, finished: bool) -
 			return false
 	var expected := {}
 	var sequence := catalog.steps(w.item)
+	# Optional on old saves: interstitial physical cup/lid handling does not
+	# advance a recipe index or consume a second copy of any ingredient.
+	var handling_value: Variant = w.get("handling", "")
+	if not handling_value is String: return false
+	var handling: String = handling_value
+	if handling not in ["", "cup_held", "cup_in_machine", "cup_ready_on_machine",
+		"cup_full_held", "cup_on_counter", "lid_held", "lid_attached"]: return false
+	var upcoming := str(sequence[int(w.step)]) if int(w.step) < sequence.size() else ""
+	match handling:
+		"cup_held":
+			if upcoming != "cup": return false
+		"cup_in_machine":
+			if int(w.step) <= sequence.find("cup") or upcoming == "place": return false
+		"cup_ready_on_machine", "cup_full_held", "cup_on_counter":
+			if upcoming not in ["sugar", "syrup", "lid"]: return false
+		"lid_held":
+			if upcoming != "lid": return false
+		"lid_attached":
+			if upcoming != "place": return false
 	var probe := ShiftCoffeePreparation.new()
 	probe.current = {"recipe": w.recipe, "consumed": expected}
 	for step_index in range(int(w.step)):
