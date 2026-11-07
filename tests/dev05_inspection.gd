@@ -110,6 +110,22 @@ func run() -> void:
 	await inspect("fridge")
 	check(not level.fridge.opened,"already-open fridge inspection finishes with a closed door")
 	check(level.save_manager.load_slot(1,"manual",1),"restore partial preparation after open-door regression")
+	# Regression for real-player bug: the fridge door moves the wrist beyond
+	# the temporary FPS-camera shoulder. A camera offset must NEVER interrupt
+	# an already-valid physical inspection or leave its task unfinished.
+	await begin_inspection("fridge")
+	await create_timer(.55).timeout
+	check(level.inspection.busy and level.inspection.animation.is_playing(),"fridge clip survives opening the door")
+	var camera_home := level.player.camera.position
+	level.player.camera.position += Vector3(.75,.10,.45)
+	check(level.inspection._pose_arm(),"camera-to-handle IK overreach is clamped, not cancelled")
+	check(absf(level.inspection.elbow_point.distance_to(level.inspection.wrist_point)-.26)<.005,
+		"overreach uses the original non-stretched forearm length")
+	level.player.camera.position = camera_home
+	await wait_inspection()
+	check(level.session.equipment.fridge and level.hud.tasks.rows.fridge.completed,
+		"fridge inspection finishes and strikes the HUD task after overreach")
+	check(level.save_manager.load_slot(1,"manual",1),"restore uninspected fridge after IK regression")
 	# Escape, F6, focus loss and an external AnimationPlayer stop cancel safely.
 	for mode in ["pause","saves","focus","stop"]:
 		await begin_inspection("cash")
