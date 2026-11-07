@@ -629,12 +629,10 @@ func show_customer() -> void:
 	if c.is_empty():
 		session.notify("Сейчас у окна никого нет. Готовый заказ можно вызвать справа через Tab")
 		return
-	var captions := PackedStringArray()
-	for item in c.items:
-		captions.append(session.catalog.caption(item))
-	var text: String = session.catalog.config.customers.profiles[int(c.profile)].greeting + ", ".join(captions) + ".\nВсё верно?"
+	var greeting: String = str(session.catalog.config.customers.profiles[int(c.profile)].greeting)
+	var text := CustomerDialogue.order_request(greeting, c.items, session.catalog)
 	var customer_id := int(c.id)
-	_panel(CustomerDialogue.speaker_name(c), text, [{"label": "Повторить состав и подтвердить заказ", "call": func() -> void:
+	_panel(CustomerDialogue.speaker_name(c), text, [{"label": "Подтвердить заказ", "call": func() -> void:
 		if session.confirm_order(customer_id): show_cash()
 		else: hud.close_panel()}], true)
 
