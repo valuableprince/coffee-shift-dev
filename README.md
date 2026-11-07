@@ -4,12 +4,33 @@ Coffee Shift is a single-player first-person coffee-trailer simulator set in Rus
 
 This repository is the **public development and CI copy** of Coffee Shift, not a complete commercial release. The full GDD, historical evidence, release assets, and unpublished AUDIO-01 work remain private.
 
-## Run locally
+## Run locally (Godot 4.3+)
 
-1. Open `project.godot` in Godot 4.3 or newer.
-2. Let Godot import all 3D assets and fonts.
-3. Press F5 to launch `scenes/first_shift.tscn`; the garage prototype is `scenes/main.tscn`.
+**This is the source project, not a standalone Windows .exe.** The GitHub `main.zip` includes the original `.glb` models and `.ttf` fonts but deliberately does **not** include the generated `.godot/` import cache. You must import resources after every fresh ZIP extraction.
+
+### Windows — recommended
+
+1. Extract the **entire** ZIP to a writable local folder, such as `C:\\Games\\CoffeeShiftDev\\`. Do not run from the ZIP preview.
+2. In Godot Project Manager select **Import**, browse to the extracted `project.godot`, and let the editor finish importing the models and fonts.
+3. Press **F5** in the editor to run `scenes/first_shift.tscn`.
 4. Use WASD, mouse, E (interact), Tab (orders), N (notebook), and Esc (pause).
+
+Alternatively, drag your **Godot 4.3+ executable** onto `START_COFFEE_SHIFT_WINDOWS.bat`. The batch script imports the raw resources first and only then launches the game. For repeat double-click use, set a `GODOT_EXE` environment variable pointing to the executable or put Godot on `PATH`. No Godot executable is bundled with the project.
+
+### Troubleshooting missing `.glb` / `.ttf` loader
+
+Errors such as `No loader found for resource ...coffee_shift_radio_receiver.glb`, `paper_regular.ttf has no resource loaders`, or `shift_world.gd: Parse Error` on a freshly downloaded ZIP typically mean **the Godot import step was skipped**, not that the original model or font is absent.
+
+Close running copies of Godot, then reopen `project.godot` in the editor and allow imports to finish. If the editor reports persistent import problems, close it, delete only the generated `.godot/` directory in the extracted project, and repeat the Project Manager import. Do **not** delete `assets/` or `project.godot`. Use Godot **4.3 or newer**, not Godot 3.x.
+
+For command-line development, run these **in this order** from the extracted root:
+
+```powershell
+& "C:\\path\\to\\Godot_v4.3-stable_win64.exe" --headless --path . --editor --import --quit
+& "C:\\path\\to\\Godot_v4.3-stable_win64.exe" --path .
+```
+
+Running `--script tests/...`, opening a `.tscn` directly, or running the project before the first editor import is **not** a valid clean-ZIP startup test. The garage prototype is `scenes/main.tscn`.
 
 ## CI
 
