@@ -9,6 +9,7 @@ var hint: Label
 var reticle: InteractionReticle
 var message: Label
 var guide: Label
+var extraction_timer: Label
 var tasks: EquipmentTaskList
 var panel: PanelContainer
 var panel_content: VBoxContainer
@@ -72,6 +73,17 @@ func _ready() -> void:
 	guide = _label(Vector2.ZERO, 14)
 	guide.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	guide.add_theme_color_override("font_color", Color("f0dcab"))
+	# Always-visible brewing stopwatch. This does not live inside the
+	# scrolling order list and cannot disappear when messages expire.
+	extraction_timer = _label(Vector2.ZERO, 21)
+	extraction_timer.name = "ExtractionTimer"
+	extraction_timer.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	extraction_timer.offset_left = -255
+	extraction_timer.offset_right = 255
+	extraction_timer.offset_top = 58
+	extraction_timer.offset_bottom = 94
+	extraction_timer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	extraction_timer.hide()
 	reticle = InteractionReticle.new()
 	root.add_child(reticle)
 	hint = reticle.hint
@@ -534,18 +546,31 @@ func refresh(session: CoffeeShiftSession) -> void:
 		session.day, minutes / 60, minutes % 60,
 		"СМЕНА ОТКРЫТА" if session.accepting else ("ЗАКАНЧИВАЕМ СМЕНУ" if session.shift_open else "СМЕНА ЗАКРЫТА"), session.cash.balance(), session.paid_orders().size()]
 	guide.text = ""
+	extraction_timer.hide()
 	if not session.preparation.current.is_empty():
 		var w: Dictionary = session.preparation.current
-		guide.text = "ЗАКАЗ №%03d\n%s\n%s" % [int(w.order), session.catalog.caption(w.item), ShiftWorld.STEP_HINTS.get(session.preparation.next_step(session.catalog), "")]
+		var next_step := session.preparation.next_step(session.catalog)
+		var instruction := ShiftWorld.handling_hint(w)
+		if instruction.is_empty():
+			instruction = str(ShiftWorld.STEP_HINTS.get(next_step, ""))
+		guide.text = "ЗАКАЗ №%03d\n%s\n%s" % [int(w.order), session.catalog.caption(w.item), instruction]
 		if w.running != "":
-			guide.text += "\nТаймер: %.1f с" % float(w.elapsed)
-			var r: Dictionary = session.catalog.recipes[w.recipe]
-			var limits: Array = r.foam if w.running == "steam" else r.extraction
-			guide.text += "\nОриентир: %d–%d с" % [int(limits[0]), int(limits[1])]
+			var recipe: Dictionary = session.catalog.recipes[w.recipe]
+			var limits: Array = recipe.foam if w.running == "steam" else recipe.extraction
+			var title := "ПАР" if w.running == "steam" else "ЭКСТРАКЦИЯ"
+			extraction_timer.text = "%s   %.1f с   •   норма %d–%d с" % [title, float(w.elapsed), int(limits[0]), int(limits[1])]
+			extraction_timer.add_theme_color_override("font_color", Color("a6d6b0") if float(w.elapsed) >= float(limits[0]) and float(w.elapsed) <= float(limits[1]) else (Color("f3b1a6") if float(w.elapsed) > float(limits[1]) else Color("f0dcab")))
+			extraction_timer.show()
+			guide.text += "\nТаймер: %.1f с  |  ориентир: %d–%d с" % [float(w.elapsed), int(limits[0]), int(limits[1])]
 	elif session.selected_order > 0:
 		var order := session.order_by_id(session.selected_order)
-		if not order.is_empty():
-			guide.text = "Выбран №%03d\n%s\nНачните с пакета кофе слева." % [session.selected_order, session.catalog.caption(order.items[session.selected_item])]
+		if not order.is_empty() and session.selected_item < order.items.size():
+			if order.status == "ready":
+				guide.text = "ЗАКАЗ №%03d ГОТОВ!\n[Tab] → Вызвать №%03d\nДождитесь покупателя у окна и нажмите E для выдачи." % [int(order.id), int(order.id)]
+			elif order.status == "called":
+				guide.text = "ЗАКАЗ №%03d ВЫЗВАН\nДождитесь покупателя у окна.\n[E] у окна → Передать через окно." % int(order.id)
+			else:
+				guide.text = "Выбран №%03d\n%s\nНачните с пакета кофе слева." % [session.selected_order, session.catalog.caption(order.items[session.selected_item])]
 	elif session.shift_open:
 		guide.text = "[E] — покупатель у окна\n[Tab] — выбрать напиток или вызвать номер\n[N] — справочник бариста"
 	else:
