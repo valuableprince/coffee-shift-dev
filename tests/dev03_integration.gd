@@ -160,7 +160,7 @@ func cook(id: int, index: int) -> void:
 			check(level.session.preparation.next_step(level.session.catalog) == "cup" and str(level.session.preparation.current.get("handling", "")) == "cup_held",
 				"physical empty cup is first picked up, not teleported into machine")
 			check(level.held.get_node_or_null("HeldEmptyCup") != null,"original cup GLB rendered in hand")
-			await use("machine")
+			await use("cup_tray")
 			check(str(level.session.preparation.current.get("handling", "")) == "cup_in_machine",
 				"second E puts cup onto drip tray")
 		elif step == "lid":
@@ -176,7 +176,7 @@ func cook(id: int, index: int) -> void:
 		if step in ["water", "pour"] or (step == "stop" and str(level.session.catalog.recipes[order.items[index].recipe].drink) == "espresso"):
 			check(str(level.session.preparation.current.get("handling", "")) == "cup_ready_on_machine",
 				"filled cup remains under group after liquid preparation")
-			await use("machine")
+			await use("cup_tray")
 			check(str(level.session.preparation.current.get("handling", "")) == "cup_full_held",
 				"player picks filled cup from machine")
 			check(level.held.get_node_or_null("HeldFilledCup") != null,"full cup visible in camera hand")
