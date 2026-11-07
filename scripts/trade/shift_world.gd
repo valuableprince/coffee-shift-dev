@@ -147,6 +147,11 @@ func _bind_session() -> void:
 	session.changed.connect(_refresh)
 	session.checkpoint.connect(save_manager.mark_checkpoint)
 	session.sound_requested.connect(audio.play_event)
+	session.customer_remark.connect(_show_customer_remark)
+
+func _show_customer_remark(customer: Dictionary, text: String) -> void:
+	if not _active or main_menu.visible or save_menu.visible or inspection.busy: return
+	hud.show_aside(CustomerDialogue.speaker_name(customer), text)
 
 func _build_trailer() -> void:
 	trailer = load("res://scenes/trailer/coffee_trailer.tscn").instantiate()
@@ -377,7 +382,7 @@ func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		if main_menu.visible: main_menu.back()
 		elif save_menu.visible: _close_saves()
-		elif hud.panel.visible: hud.close_panel()
+		elif hud.panel.visible: hud.request_close_panel()
 		elif _orders_editing: _set_orders_editing(false)
 		elif _active: show_pause()
 		get_viewport().set_input_as_handled()
@@ -422,6 +427,7 @@ func _physics_process(delta: float) -> void:
 	else:
 		audio.set_process_sound("")
 		hud.hint.text = ""
+		if running and hud.panel.visible: _sync_customers(delta)
 	_last_foot_position = player.position
 
 func _sync_customers(delta: float) -> void:
@@ -547,10 +553,10 @@ func interact_station(station: ShiftWorkstation) -> void:
 			else: show_discard()
 		"menu": show_menu_board()
 
-func _panel(title: String, body: String, actions: Array = [], is_dialogue: bool = false) -> void:
+func _panel(title: String, body: String, actions: Array = [], is_dialogue: bool = false, can_close: bool = true) -> void:
 	inspection.cancel()
 	_set_orders_editing(false)
-	hud.show_panel(title, body, actions, is_dialogue)
+	hud.show_panel(title, body, actions, is_dialogue, can_close)
 	player.controls_enabled = false
 	player.set_mouse_capture(false)
 	_sync_process_audio()
@@ -612,7 +618,7 @@ func show_customer() -> void:
 	if not pickup.is_empty():
 		var order_id := int(pickup.order)
 		var customer_id := int(pickup.id)
-		_panel("ВЫДАЧА №%03d" % order_id, "Покупатель подошёл за своим заказом.", [{"label": "Передать через окно", "call": func() -> void:
+		_panel(CustomerDialogue.speaker_name(pickup), "Покупатель подошёл за заказом №%03d." % order_id, [{"label": "Передать через окно", "call": func() -> void:
 			session.serve_order(order_id, customer_id)
 			hud.close_panel()}], true)
 		return
@@ -623,12 +629,12 @@ func show_customer() -> void:
 	if c.is_empty():
 		session.notify("Сейчас у окна никого нет. Готовый заказ можно вызвать справа через Tab")
 		return
-	var text: String = session.catalog.config.customers.profiles[int(c.profile)].greeting
+	var captions := PackedStringArray()
 	for item in c.items:
-		text += "\n• " + session.catalog.caption(item)
-	text += "\n\nВсё верно?"
+		captions.append(session.catalog.caption(item))
+	var text: String = session.catalog.config.customers.profiles[int(c.profile)].greeting + ", ".join(captions) + ".\nВсё верно?"
 	var customer_id := int(c.id)
-	_panel("ЗАКАЗ • " + str(c.name), text, [{"label": "Повторить состав и подтвердить заказ", "call": func() -> void:
+	_panel(CustomerDialogue.speaker_name(c), text, [{"label": "Повторить состав и подтвердить заказ", "call": func() -> void:
 		if session.confirm_order(customer_id): show_cash()
 		else: hud.close_panel()}], true)
 
@@ -728,6 +734,7 @@ func validate_snapshot(data: Dictionary) -> bool:
 
 func apply_snapshot(data: Dictionary) -> bool:
 	if not validate_snapshot(data): return false
+	hud.clear_aside()
 	inspection.cancel()
 	if not session.restore(data.trade): return false
 	music.restore_audio(data.world.get("audio", {}))
@@ -810,6 +817,7 @@ func switch_career(career_id: int) -> void:
 
 func show_title() -> void:
 	inspection.cancel()
+	hud.clear_aside()
 	_active = false
 	_saves_from_pause = false
 	_orders_editing = false
@@ -824,6 +832,7 @@ func show_title() -> void:
 
 func show_pause() -> void:
 	inspection.cancel()
+	hud.clear_aside()
 	_orders_editing = false
 	hud.set_orders_editing(false)
 	hud.hide()
@@ -834,12 +843,13 @@ func show_pause() -> void:
 	_sync_process_audio()
 
 func resume_game() -> void:
+	hud.clear_aside()
 	_saves_from_pause = false
 	_orders_editing = false
 	hud.set_orders_editing(false)
 	main_menu.hide()
 	hud.show()
-	hud.panel.hide()
+	hud.dismiss_panel()
 	save_menu.hide()
 	_active = true
 	music.set_context("trade")
@@ -848,9 +858,10 @@ func resume_game() -> void:
 
 func open_saves() -> void:
 	inspection.cancel()
+	hud.clear_aside()
 	_orders_editing = false
 	hud.set_orders_editing(false)
-	hud.panel.hide()
+	hud.dismiss_panel()
 	player.controls_enabled = false
 	player.set_mouse_capture(false)
 	save_menu.refresh()
