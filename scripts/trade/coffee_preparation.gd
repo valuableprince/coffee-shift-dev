@@ -1,6 +1,7 @@
 class_name ShiftCoffeePreparation
 extends RefCounted
 ## One physical work-in-progress, independently from finished cups on the rack.
+const GRIND_SECONDS := .75
 var current: Dictionary = {}
 
 func next_step(catalog: ShiftRecipeCatalog) -> String:
@@ -17,9 +18,36 @@ func begin(order_id: int, item_index: int, item: Dictionary) -> bool:
 		"steam_seconds": 0.0, "consumed": {}, "cost": 0}
 	return true
 
-func tick(delta: float) -> void:
-	if not current.is_empty() and current.running != "":
-		current.elapsed = minf(90, float(current.elapsed) + delta)
+func tick(delta: float) -> bool:
+	if current.is_empty() or current.running == "":
+		return false
+	current.elapsed = minf(90, float(current.elapsed) + delta)
+	if current.running != "grind" or float(current.elapsed) < GRIND_SECONDS:
+		return false
+	current.running = ""
+	current.elapsed = 0.0
+	return true
+
+func restore_placements(catalog: ShiftRecipeCatalog) -> void:
+	if current.is_empty():
+		return
+	var upcoming := next_step(catalog)
+	if not current.has("portafilter"):
+		match upcoming:
+			"beans", "grind": current.portafilter = "at_machine_storage"
+			"filter": current.portafilter = "in_grinder"
+			"dose", "install": current.portafilter = "in_hand"
+			_: current.portafilter = "installed"
+		if current.get("handling", "") == "cup_in_machine" and upcoming in ["sugar", "syrup", "lid"]:
+			current.handling = "cup_ready_on_machine"
+	if str(current.get("handling", "")) == "":
+		var sequence := catalog.steps(current.item)
+		if int(current.step) <= sequence.find("cup"):
+			return
+		match upcoming:
+			"sugar", "syrup", "lid": current.handling = "cup_ready_on_machine"
+			"place": current.handling = "capped_held"
+			_: current.handling = "cup_in_machine"
 
 func resources_for(step: String, catalog: ShiftRecipeCatalog) -> Dictionary:
 	var recipe: Dictionary = catalog.recipes[current.recipe]
@@ -40,6 +68,8 @@ func resources_for(step: String, catalog: ShiftRecipeCatalog) -> Dictionary:
 func act(step: String, inventory: ShiftInventory, catalog: ShiftRecipeCatalog) -> String:
 	if current.is_empty() or step != next_step(catalog):
 		return "Сначала выполните следующий шаг рецепта"
+	if current.has("portafilter") and not _at_workstation(step):
+		return "Сначала подготовьте предметы для этого шага"
 	var resources := resources_for(step, catalog)
 	for key in resources:
 		if int(inventory.reserved.get(key, 0)) < int(resources[key]) or int(inventory.stock.get(key, 0)) < int(resources[key]):
@@ -55,4 +85,40 @@ func act(step: String, inventory: ShiftInventory, catalog: ShiftRecipeCatalog) -
 		current["extraction_seconds" if step == "stop" else "steam_seconds"] = float(current.elapsed)
 		current.running = ""
 	current.step = int(current.step) + 1
+	if current.has("portafilter"):
+		_update_placements(step, catalog)
 	return ""
+
+func _at_workstation(step: String) -> bool:
+	var placement: String = current.portafilter
+	var cup := str(current.get("handling", ""))
+	match step:
+		"beans", "grind", "filter": return placement == "in_grinder" and current.running == ""
+		"dose": return placement == "on_tamping_mat" and current.get("tamper_held", false)
+		"install": return placement == "in_hand"
+		"cup": return cup == "cup_held"
+		"extract": return placement == "installed" and cup == "cup_in_machine"
+		"water": return cup == "cup_at_water_tap"
+		"pour": return cup == "cup_in_machine"
+		"sugar", "syrup": return cup == "cup_on_counter"
+		"lid": return cup == "lid_held"
+		"place": return cup == "capped_held"
+	return true
+
+func _update_placements(step: String, catalog: ShiftRecipeCatalog) -> void:
+	match step:
+		"grind":
+			current.running = "grind"
+			current.elapsed = 0.0
+		"filter": current.portafilter = "in_hand"
+		"dose": current.erase("tamper_held")
+		"install": current.portafilter = "installed"
+		"cup": current.handling = "cup_in_machine"
+		"stop", "pour":
+			if next_step(catalog) in ["sugar", "syrup", "lid"]:
+				current.handling = "cup_ready_on_machine"
+		"water": current.handling = "cup_ready_at_water_tap"
+		"lid": current.handling = "lid_attached"
+		"place":
+			current.erase("handling")
+			current.erase("portafilter")

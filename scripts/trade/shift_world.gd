@@ -2,16 +2,17 @@ class_name ShiftWorld
 extends Node3D
 ## Scene composition. Physical E targets call authoritative session operations.
 const G := preload("res://scripts/prototype/prototype_geometry.gd")
+const CARRIER_OFFSET := Vector3(0, 0, .139)
 const STEP_HINTS := {
-	"beans": "Возьмите кофе из пакета слева", "grind": "Смелите кофе в кофемолке справа",
-	"filter": "Возьмите чистый портафильтр у кофемашины", "dose": "Наполните и утрамбуйте портафильтр темпером на коврике",
-	"install": "Установите портафильтр в группу кофемашины", "cup": "Возьмите подходящий стакан слева и поставьте под группу",
-	"extract": "Запустите экстракцию на кофемашине", "stop": "Остановите экстракцию на кофемашине",
-	"water": "Добавьте горячую воду отдельным краном", "milk": "Откройте холодильник слева и возьмите молоко с полки",
+	"beans": "Возьмите порцию зёрен из пакета слева", "grind": "Нажмите кнопку кофемолки",
+	"filter": "Заберите рожок из кофемолки", "dose": "Утрамбуйте кофе в рожке на коврике",
+	"install": "Установите рожок в группу кофемашины", "cup": "Возьмите пустой стакан из стопки слева",
+	"extract": "Запустите экстракцию кнопкой кофемашины", "stop": "Остановите экстракцию через 8–12 секунд",
+	"water": "Долейте горячую воду из крана кофемашины", "milk": "Откройте холодильник слева и возьмите молоко с полки",
 	"pitcher": "Перелейте молоко в питчер рядом с кофемолкой", "steam": "Включите паровую трубку справа",
 	"stop_steam": "Остановите паровую трубку", "pour": "Добавьте молоко из питчера к кофе",
 	"sugar": "Добавьте порцию сахара из сахарницы слева", "syrup": "Добавьте ванильный сироп слева",
-	"lid": "Возьмите крышку рядом со стаканами", "place": "Поставьте готовый стакан на стойку выдачи"
+	"lid": "Возьмите крышку из стопки слева", "place": "Поставьте закрытый стакан на стойку выдачи"
 }
 var session := CoffeeShiftSession.new()
 var player: CoffeeShiftPlayer
@@ -67,7 +68,7 @@ func _ready() -> void:
 	player.camera.rotation.x = player.pitch
 	_last_foot_position = player.position
 	held = Node3D.new()
-	held.position = Vector3(.24, -.26, -.48)
+	held.position = Vector3(.37, -.235, -.48)
 	player.camera.add_child(held)
 	accessories = BaristaAccessories.new()
 	trailer.add_child(accessories)
@@ -222,12 +223,17 @@ func _build_stations() -> void:
 	G.box(trailer, "WindowLatch", Vector3(1.15,1.97,.75), Vector3(.045,.16,.10), Color("354a41"), false)
 	G.box(trailer, "ShiftSwitchHousing", Vector3(1.16,1.57,.92), Vector3(.04,.14,.12), Color("9ca99c"), false)
 	G.box(trailer, "ShiftSwitch", Vector3(1.13,1.57,.92), Vector3(.025,.065,.065), Color("315c4b"), false)
-	_station("counter", "Окно выдачи", Vector3(.51, 1.62, 0), Vector3(.10, .20, .24))
 	stations.cash = new_assets.register.get_node("BodyInteraction")
 	_station("machine", "Кофемашина", machine_visual.control_point("brew_left"), Vector3(.055, .055, .07))
+	# A separate direct-E target at the cup, independent from the machine's
+	# brew button: picking up or placing a cup never presses 'Start'.
+	_station("cup_tray", "Поддон кофемашины", machine_visual.cup_base() + Vector3(-.033, .052, 0), Vector3(.16, .13, .105))
+	stations.cup_tray.collision_layer = 0
+	_station("water_tray", "Поддон под краном", machine_visual.water_cup_base() + Vector3(-.033, .052, 0), Vector3(.16, .13, .10))
+	stations.water_tray.collision_layer = 0
 	# Physical model controls resolve to the same existing machine operation.
 	machine_visual.reparent(stations.machine)
-	for control in ["power", "brew_right", "group"]:
+	for control in ["power", "brew_right"]:
 		var collision := CollisionShape3D.new()
 		collision.name = control
 		var shape := BoxShape3D.new()
@@ -235,11 +241,22 @@ func _build_stations() -> void:
 		collision.shape = shape
 		collision.position = stations.machine.to_local(machine_visual.control_point(control))
 		stations.machine.add_child(collision)
+	_station("group", "Группа кофемашины", machine_visual.control_point("group"), Vector3(.075, .060, .085))
+	var grinder: Node3D = grinder_visual.get_node("CoffeeGrinder")
 	_station("grinder", "Кофемолка", Vector3(.72, 1.5, -1.0), Vector3(.065, .19, .20))
-	# Embedded imported colliders resolve to this same existing E target.
+	_station("grinder_button", "Кофемолка", grinder.to_global(Vector3(.086, .296, .188)), Vector3(.045, .057, .048))
+	stations.grinder_button.collision_layer = 0
+	var grinder_body := grinder.get_node("StaticBody3D/CollisionShape3D") as CollisionShape3D
+	var grinder_box := BoxShape3D.new()
+	grinder_box.size = Vector3(.32, .84, .30)
+	grinder_body.shape = grinder_box
+	grinder_body.position.z = 0
+	# The imported body remains an occluder. Its own target is used for inspection.
 	grinder_visual.reparent(stations.grinder)
 	_station("filter", "Рожок", machine_visual.control_point("filter"), Vector3(.07, .045, .11))
+	_station("grinder_fork", "Держатель кофемолки", accessories.grinder_grip_point() + Vector3(.057, 0, 0), Vector3(.22, .08, .11))
 	_station("dose", "Темпер", accessories.tamper.get_node("HandGrip").global_position, Vector3(.075, .13, .075))
+	_station("tamping_mat", "Коврик для трамбовки", accessories.mat_grip_point(), Vector3(.26, .12, .16))
 	_station("water", "Горячая вода", machine_visual.control_point("water"), Vector3(.06, .035, .06))
 	_station("steam", "Паровая трубка", machine_visual.control_point("steam"), Vector3(.06, .07, .08))
 	_station("beans", "Кофе", Vector3(-.51, 1.47, -.93))
@@ -253,7 +270,8 @@ func _build_stations() -> void:
 	_station("lids", "Крышки", Vector3(-.51, 1.35, .85), Vector3(.08, .1, .18))
 	_station("sugar", "Сахар", Vector3(-.51, 1.47, 1.03), Vector3(.08, .16, .16))
 	_station("syrup", "Ваниль", Vector3(-.51, 1.55, .38), Vector3(.08, .16, .16))
-	_station("ready", "Готовый напиток", Vector3(.52, 1.30, .50), Vector3(.08, .12, .18))
+	_station("countertop", "Столешница", ShiftNewAssets.COUNTERTOP_CUP_POINT + Vector3.UP * .060, Vector3(.13, .13, .13))
+	_station("ready", "Стойка выдачи", Vector3(.57, 1.28, .50), Vector3(.15, .16, .20))
 	_station("carrier", "Держатель", Vector3(-.51, 1.43, .08))
 	_station("bin", "Мусорное ведро", Vector3(-.44, .85, 1.93), Vector3(.08, .25, .20))
 	_station("menu", "Меню / цены / запасы", Vector3(-.52, 1.95, -1.45), Vector3(.08, .28, .30))
@@ -279,8 +297,8 @@ func _build_stations() -> void:
 	G.cylinder(trailer, "SyrupBottle", Vector3(-.78, 1.46, .38), .044, .32, Color("8b784e"), false)
 	G.cylinder(trailer, "Bin", Vector3(-.72, .68, 1.94), .18, .50, Color("526358"), false)
 	new_assets.build_stock()
-	var mat := G.box(trailer, "TampingMat", Vector3(.59, 1.311, -.97), Vector3(.19, .022, .17), Color("26332d"), false)
-	var mat_top := G.box(mat, "InsetSurface", Vector3(0, .012, 0), Vector3(.178, .002, .158), Color("3a4c40"), false)
+	var mat := G.box(trailer, "TampingMat", BaristaAccessories.MAT_CENTER, Vector3(.25, .010, .18), Color("26332d"), false)
+	var mat_top := G.box(mat, "InsetSurface", Vector3(0, .006, 0), Vector3(.234, .002, .164), Color("3a4c40"), false)
 	for part in [mat, mat_top]:
 		(part.get_child(0).material_override as StandardMaterial3D).roughness = .97
 	G.box(trailer, "Carriers", Vector3(-.76, 1.35, .08), Vector3(.40, .09, .30), Color("b29968"), false)
@@ -302,7 +320,7 @@ func _refresh() -> void:
 	_sync_process_audio()
 	_sync_fridge()
 	new_assets.sync_register()
-	hud.refresh(session)
+	hud.refresh(session, _operation_hint())
 	if session.last_message != "": hud.say(session.last_message)
 	var menu := "МЕНЮ • КОФЕ С СОБОЙ\n"
 	var available := session.available_menu()
@@ -316,21 +334,31 @@ func _refresh() -> void:
 	for child in drinks_root.get_children():
 		drinks_root.remove_child(child)
 		child.queue_free()
-	var row := 0
-	for order in session.active_orders():
+	for order in session.paid_orders():
+		if int(order.id) == new_assets.delivering_order: continue
+		var origin := _serving_slot(order, 0)
 		if order.carrier:
-			G.box(drinks_root, "CardboardCarrier", Vector3(.86, 1.235, -.52 + row * .51), Vector3(.46, .07, .42), Color("b9a174"), false)
+			new_assets.carrier(drinks_root, "Carrier_%d" % int(order.id), origin + CARRIER_OFFSET, order.items.size())
 		for i in range(order.items.size()):
 			if not order.items[i].ready: continue
-			var point := Vector3(.67 + i * .16, 1.20, -.52 + row * .51)
-			var cup := new_assets.cup(drinks_root, "Cup_%d_%d" % [int(order.id), i], point, true, true)
+			var point := _serving_slot(order, i)
+			if i in order.packed: point += CARRIER_OFFSET + Vector3.UP * .014
+			var packable: bool = order.carrier and i not in order.packed and session.preparation.current.is_empty()
+			var cup := new_assets.cup(drinks_root, "Cup_%d_%d" % [int(order.id), i], point, true, not packable)
 			cup.set_meta("order", order.id)
 			cup.set_meta("item", i)
+			if packable:
+				var target := ShiftWorkstation.new()
+				target.configure(self, "pack_cup", "Стакан", Vector3(0, .061, 0), Vector3(.103, .124, .103))
+				target.order_id = int(order.id)
+				target.item_index = i
+				cup.add_child(target)
 			var number := G.sign_text(cup, str(int(order.id)), Vector3(0, .053, .042), Vector3.ZERO, 18)
 			number.pixel_size = .0012
-			if i in order.packed: cup.position.y += .07
-		row += 1
 	_refresh_held()
+
+func _serving_slot(order: Dictionary, index: int) -> Vector3:
+	return Vector3(.66 + index * .14, 1.20, -.57 + int(order.get("rack_slot", 0)) * .51)
 
 func _sync_fridge() -> void:
 	if fridge == null or not stations.has("milk"): return
@@ -350,8 +378,14 @@ func _refresh_held() -> void:
 			child.queue_free()
 	machine_visual.sync(session.equipment.machine, session.preparation.current)
 	accessories.sync()
+	if stations.has("cup_tray"):
+		for action in ["cup_tray", "water_tray", "countertop", "group", "grinder_button", "grinder_fork", "tamping_mat", "ready"]:
+			stations[action].collision_layer = 2 if not _preparation_action(action).is_empty() else 0
+		stations.grinder.collision_layer = 0 if stations.grinder_button.collision_layer == 2 else 2
 	if session.preparation.current.is_empty(): return
 	var w: Dictionary = session.preparation.current
+	if w.get("handling", "") == "capped_held":
+		stations.ready.position = _serving_slot(session.order_by_id(int(w.order)), int(w.index)) + Vector3.UP * .05
 	new_assets.preparation(preparation_visual, held)
 	if w.running == "steam":
 		var steam_origin := trailer.to_local(accessories.pitcher.get_node("PourSpout").global_position)
@@ -361,16 +395,146 @@ func _refresh_held() -> void:
 			mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			(mesh.material_override as StandardMaterial3D).transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	var step := session.preparation.next_step(session.catalog)
-	if step not in ["dose", "install", "steam", "stop_steam", "pour", "milk"]:
-		G.box(held, "Hand", Vector3(.04, -.08, .04), Vector3(.075, .11, .13), Color("ba9c7a"), false)
+	# Use the same actual paper cup / lid as the counter scene, not the old
+	# placeholder cubes. The shared PS2+ hand follows the camera.
+	if str(w.get("handling", "")) in ["cup_held", "cup_full_held", "water_held", "lid_held", "capped_held"]:
+		var hand := Node3D.new()
+		hand.position = Vector3(.017, -.017, .003)
+		hand.rotation.y = .23
+		hand.scale = Vector3(.83, .87, .81)
+		held.add_child(hand)
+		BaristaHand.build(hand)
 	if step == "pitcher":
 		var carton: Node3D = load("res://assets/models/utrenniy_lug/milk_carton.tscn").instantiate()
 		carton.scale = Vector3.ONE * .7
 		carton.position.y = -.09
 		held.add_child(carton)
 		for body in carton.find_children("*", "StaticBody3D", true, false): body.collision_layer = 0
-	elif int(w.step) < 3:
-		G.box(held, "Dose", Vector3.ZERO, Vector3(.10, .10, .08), Color("927853"), false)
+
+
+# A cosmetic, persisted handling phase between real recipe operations.
+# The old recipe indices are unchanged, so an in-progress legacy save remains
+# loadable without inventing new ingredient consumption.
+static func handling_hint(work: Dictionary, next: String) -> String:
+	if work.get("running", "") == "grind": return "Кофемолка мелет кофе"
+	match str(work.get("portafilter", "")):
+		"at_machine_storage": return "Возьмите рожок у кофемашины"
+		"in_hand":
+			if next == "dose": return "Поставьте рожок на коврик рядом с темпером"
+			if next in ["beans", "grind"]: return "Установите рожок в держатель кофемолки"
+		"on_tamping_mat":
+			if next == "install": return "Возьмите рожок с коврика"
+			return "Утрамбуйте кофе темпером на коврике" if work.get("tamper_held", false) else "Возьмите темпер рядом с ковриком"
+	match str(work.get("handling", "")):
+		"cup_held": return "Поставьте стакан под группу кофемашины"
+		"cup_in_machine":
+			if next == "water": return "Возьмите стакан и переставьте его под кран горячей воды"
+		"water_held": return "Поставьте стакан под кран горячей воды"
+		"cup_ready_on_machine", "cup_ready_at_water_tap": return "Заберите стакан с напитком с поддона кофемашины"
+		"cup_full_held": return "Поставьте стакан на столешницу слева"
+		"lid_held": return "Наденьте крышку на стакан на столешнице"
+		"lid_attached": return "Возьмите закрытый стакан со столешницы"
+		"capped_held": return "Поставьте стакан на стойку выдачи"
+	return ""
+
+func _operation_hint() -> String:
+	if new_assets.delivering_order != 0: return "Передаём заказ покупателю"
+	if new_assets.is_playing("lid"): return "Закрываем стакан крышкой"
+	if new_assets.is_playing("water"): return "Из крана льётся горячая вода"
+	match accessories._animation:
+		"dose": return "Утрамбовываем кофе"
+		"install": return "Фиксируем рожок в группе"
+		"pour": return "Вливаем молоко в стакан"
+	return ""
+
+func _preparation_action(station: String) -> String:
+	var work: Dictionary = session.preparation.current
+	if work.is_empty():
+		if station == "filter" and session.can_begin_drink() and accessories.inspected in ["", "filter"]:
+			return "take_filter"
+		return ""
+	var next := session.preparation.next_step(session.catalog)
+	var filter := str(work.get("portafilter", ""))
+	var phase := str(work.get("handling", ""))
+	match station:
+		"filter":
+			if filter == "at_machine_storage": return "take_filter"
+		"grinder_fork":
+			if filter == "in_hand" and next in ["beans", "grind"]: return "mount_grinder"
+			if filter == "in_grinder" and next == "filter" and work.running == "": return "filter"
+		"beans":
+			if filter == "in_grinder" and next == "beans": return "beans"
+		"grinder_button":
+			if filter == "in_grinder" and next == "grind": return "grind"
+		"tamping_mat":
+			if filter == "in_hand" and next == "dose": return "place_filter"
+			if filter == "on_tamping_mat" and work.get("tamper_held", false): return "dose"
+			if filter == "on_tamping_mat" and next == "install": return "take_filter"
+		"dose":
+			if filter == "on_tamping_mat" and next == "dose" and not work.get("tamper_held", false): return "take_tamper"
+		"group":
+			if filter == "in_hand" and next == "install": return "install"
+		"cups":
+			if next == "cup" and phase == "": return "take_cup"
+		"cup_tray":
+			if phase == "cup_held": return "cup"
+			if phase == "cup_in_machine" and next == "water": return "take_water_cup"
+			if phase == "cup_ready_on_machine": return "take_filled"
+		"water_tray":
+			if phase == "water_held": return "place_water_cup"
+			if phase == "cup_ready_at_water_tap": return "take_filled"
+		"water":
+			if next == "water" and phase == "cup_at_water_tap": return "water"
+		"machine":
+			if next == "extract" and filter == "installed" and phase == "cup_in_machine": return "extract"
+			if next == "stop": return "stop"
+		"countertop":
+			if phase == "cup_full_held": return "place_on_counter"
+			if phase == "lid_held": return "lid"
+			if phase == "lid_attached": return "take_capped"
+		"lids":
+			if phase == "cup_on_counter" and next == "lid": return "take_lid"
+		"sugar", "syrup":
+			if phase == "cup_on_counter" and next == station: return station
+		"ready":
+			if phase == "capped_held": return "place"
+	return ""
+
+const PREPARATION_PROMPTS := {
+	"take_filter": "Взять рожок", "mount_grinder": "Установить рожок", "filter": "Взять рожок",
+	"beans": "Взять зёрна", "grind": "Запустить помол", "place_filter": "Поставить рожок на коврик",
+	"take_tamper": "Взять темпер", "dose": "Утрамбовать кофе", "install": "Установить рожок в группу",
+	"take_cup": "Взять стакан", "cup": "Поставить стакан", "take_filled": "Взять стакан",
+	"take_water_cup": "Взять стакан", "place_water_cup": "Поставить стакан", "water": "Долить горячую воду",
+	"extract": "Запустить экстракцию", "stop": "Остановить экстракцию",
+	"place_on_counter": "Поставить стакан", "take_lid": "Взять крышку", "lid": "Надеть крышку",
+	"take_capped": "Взять стакан", "place": "Поставить стакан на выдачу", "sugar": "Добавить сахар", "syrup": "Добавить сироп"
+}
+
+const PROP_TRANSFERS := {
+	"mount_grinder": ["portafilter", "in_grinder", "Рожок в держателе кофемолки"],
+	"place_filter": ["portafilter", "on_tamping_mat", "Рожок на коврике"],
+	"take_tamper": ["tamper_held", true, "Темпер в руке"],
+	"take_cup": ["handling", "cup_held", "Стакан в руке"],
+	"take_water_cup": ["handling", "water_held", "Стакан в руке"],
+	"place_water_cup": ["handling", "cup_at_water_tap", "Стакан под краном горячей воды"],
+	"take_filled": ["handling", "cup_full_held", "Стакан в руке"],
+	"place_on_counter": ["handling", "cup_on_counter", "Стакан на столешнице"],
+	"take_lid": ["handling", "lid_held", "Крышка в руке"],
+	"take_capped": ["handling", "capped_held", "Закрытый стакан в руке"]
+}
+
+func _use_preparation_action(action: String) -> void:
+	if action == "take_filter":
+		if session.preparation.current.is_empty(): session.begin_drink(true)
+		else: session.move_preparation_prop("portafilter", "in_hand", "Рожок в руке")
+	elif PROP_TRANSFERS.has(action):
+		var move: Array = PROP_TRANSFERS[action]
+		session.move_preparation_prop(move[0], move[1], move[2])
+	elif session.prepare_action(action):
+		if action in ["dose", "install"]: accessories.play(action)
+		if action in ["lid", "water"]: new_assets.play_preparation(action)
+
 
 func _input(event: InputEvent) -> void:
 	if not _ready_for_input or not is_instance_valid(main_menu) or not is_instance_valid(save_menu): return
@@ -400,8 +564,9 @@ func _input(event: InputEvent) -> void:
 		return
 	if _orders_editing: return
 	if event.is_action_pressed("interact") and not event.is_echo() and player.mouse_captured:
-		var target := player.get_interactable()
-		if target != null: target.interact()
+		if new_assets.delivering_order == 0:
+			var target := player.get_interactable()
+			if target != null: target.interact()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("notebook"): show_help()
 func _physics_process(delta: float) -> void:
@@ -412,7 +577,7 @@ func _physics_process(delta: float) -> void:
 	if running and not hud.panel.visible and not _orders_editing:
 		session.tick(delta)
 		_sync_customers(delta)
-		hud.refresh(session)
+		hud.refresh(session, _operation_hint())
 		_sync_process_audio()
 		_sync_fridge()
 		var target := player.get_interactable()
@@ -438,6 +603,8 @@ func _sync_customers(delta: float) -> void:
 		if not npc_visuals.has(id):
 			var visual := ShiftCustomerVisual.new()
 			npc_root.add_child(visual)
+			visual.world = self
+			visual.customer_id = id
 			visual.build(Color(session.catalog.config.customers.profiles[int(c.profile)].color), int(c.profile))
 			visual.position = RestorationCatalog.vector(c.position)
 			npc_visuals[id] = visual
@@ -454,7 +621,14 @@ func station_available_action(station: ShiftWorkstation) -> String:
 		if accessories.inspected != "": return "Сначала верните предмет"
 		if not inspection.can_reach(station.action): return "Подойдите ближе"
 		return "[E] Осмотреть"
-	var next := session.preparation.next_step(session.catalog)
+	var preparation_action := _preparation_action(station.action)
+	if preparation_action != "":
+		if station.action == "tamping_mat" and accessories._animation == "dose": return ""
+		if station.action == "countertop" and new_assets.is_playing("lid"): return ""
+		if station.action == "water_tray" and new_assets.is_playing("water"): return ""
+		if station.action == "cup_tray" and accessories._animation == "pour": return ""
+		if station.action == "machine" and accessories._animation == "install": return ""
+		return "[E] " + str(PREPARATION_PROMPTS[preparation_action])
 	if station.action in ["filter", "dose", "pitcher"] and session.preparation.current.is_empty():
 		if accessories.inspected == station.action: return "[E] Вернуть"
 		if accessories.inspected == "": return "[E] Взять"
@@ -467,47 +641,33 @@ func station_available_action(station: ShiftWorkstation) -> String:
 			if session.window_open and session.shift_open: return "Сначала закройте смену"
 			return "[E] Закрыть" if session.window_open else "[E] Открыть"
 		"cash":
-			if not session.cash.payment.is_empty(): return "[E] Продолжить расчёт"
+			if not session.cash.payment.is_empty(): return "[E] Продолжить оплату"
 			return "[E] Закрыть денежный ящик" if new_assets.register.drawer_open else "[E] Открыть денежный ящик"
-		"menu", "shift", "carrier": return "[E] Использовать"
-		"counter":
-			if not _pickup_at_counter().is_empty(): return "[E] Выдать заказ"
-			if not session.cash.payment.is_empty(): return "[E] Продолжить расчёт"
-			if not session.counter_customer().is_empty(): return "[E] Поговорить"
-		"machine":
-			if not session.equipment.machine or next in ["install", "extract", "stop"]: return "[E] Использовать"
-		"grinder":
-			if not session.equipment.grinder or next == "grind": return "[E] Использовать"
+		"menu", "shift": return "[E] Использовать"
+		"carrier":
+			if not _orders_needing_carrier().is_empty(): return "[E] Взять держатель"
+		"pack_cup":
+			if not new_assets.is_moving_on_rack() and session.preparation.current.is_empty(): return "[E] Поставить стакан в держатель"
 		"milk":
-			if fridge.milk_accessible() and next == "milk" and int(session.inventory.stock.milk) > 0: return "[E] Взять"
-		"beans":
-			var order := session.order_by_id(session.selected_order)
-			if next == "beans" or (session.preparation.current.is_empty() and not order.is_empty() and order.paid and session.selected_item < order.items.size() and not order.items[session.selected_item].ready): return "[E] Взять"
+			if fridge.milk_accessible() and session.preparation.next_step(session.catalog) == "milk" and int(session.inventory.stock.milk) > 0: return "[E] Взять молоко"
 		"pitcher":
-			if next in ["pitcher", "pour"]: return "[E] Перелить молоко"
-		"filter":
-			if next == "filter": return "[E] Взять"
-		"dose":
-			if next == "dose": return "[E] Наполнить и утрамбовать"
+			if session.preparation.next_step(session.catalog) in ["pitcher", "pour"]: return "[E] Перелить молоко"
 		"steam":
+			var next := session.preparation.next_step(session.catalog)
 			if next == "steam": return "[E] Включить пар"
 			if next == "stop_steam": return "[E] Остановить пар"
-		"cups":
-			if next == "cup": return "[E] Взять"
-		"lids":
-			if next == "lid": return "[E] Установить"
-		"ready":
-			if next == "place": return "[E] Поставить стакан"
 		"bin": return "[E] Выбросить напиток" if not session.preparation.current.is_empty() else "[E] Использовать"
-		_:
-			if next == station.action: return "[E] Использовать"
 	return ""
 
 func interact_station(station: ShiftWorkstation) -> void:
-	if inspection.busy: return
+	if inspection.busy or not station_available_action(station).begins_with("[E]"): return
 	var action := station.action
 	if session.equipment.has(action) and not session.shift_open and not session.equipment[action]:
-		if station_available_action(station).begins_with("[E]"): inspection.start(action)
+		inspection.start(action)
+		return
+	var preparation_action := _preparation_action(action)
+	if preparation_action != "":
+		_use_preparation_action(preparation_action)
 		return
 	var next := session.preparation.next_step(session.catalog)
 	if action in ["filter", "dose", "pitcher"] and session.preparation.current.is_empty():
@@ -519,34 +679,23 @@ func interact_station(station: ShiftWorkstation) -> void:
 			save_manager.mark_checkpoint("Состояние радио")
 		"window": session.toggle_window()
 		"shift": show_shift()
-		"counter": show_customer()
 		"cash":
 			if not session.cash.payment.is_empty(): show_cash()
 			else: new_assets.register.toggle_drawer()
-		"machine":
-			if next in ["install", "extract", "stop"]: session.prepare_action(next)
-			else: session.notify("Кофемашина готова. " + str(STEP_HINTS.get(next, "Выберите оплаченный заказ")))
-		"grinder":
-			if next == "grind": session.prepare_action("grind")
-			else: session.notify("Кофемолка готова. Сначала возьмите кофе")
 		"fridge":
 			fridge.toggle()
 			session.notify("Холодильник открыт. Молоко на нижней полке" if fridge.opened else "Холодильник закрыт")
 		"milk":
-			if not fridge.milk_accessible(): session.notify("Сначала откройте дверцу холодильника")
-			else: session.prepare_action("milk")
-		"dose":
-			if next == "dose": accessories.play("dose")
-			session.prepare_action(action)
-		"beans", "filter", "water", "sugar", "syrup": session.prepare_action(action)
+			session.prepare_action("milk")
 		"pitcher":
-			if next == "pour": accessories.play("pour")
-			session.prepare_action("pour" if next == "pour" else "pitcher")
+			if session.prepare_action(next) and next == "pour": accessories.play("pour")
 		"steam": session.prepare_action("stop_steam" if next == "stop_steam" else "steam")
-		"cups": session.prepare_action("cup")
-		"lids": session.prepare_action("lid")
-		"ready": session.prepare_action("place")
 		"carrier": show_carrier()
+		"pack_cup":
+			var cup_name := "Cup_%d_%d" % [station.order_id, station.item_index]
+			var start: Vector3 = station.get_parent().global_position
+			if session.pack_cup(station.order_id, station.item_index):
+				new_assets.move_on_rack(drinks_root.get_node(cup_name), start)
 		"bin":
 			if not session.preparation.current.is_empty():
 				session.discard_drink(int(session.preparation.current.order), int(session.preparation.current.index))
@@ -607,36 +756,44 @@ func _toggle_shift() -> void:
 		hud.close_panel()
 	else: _panel("СМЕНА", session.last_message, [{"label": "Вернуться к подготовке", "call": hud.close_panel}])
 
-func _pickup_at_counter() -> Dictionary:
-	for c in session.customers:
-		if c.state == "pickup" and CoffeeShiftSession._distance(c.position, session.catalog.config.points.counter) < .15:
-			return c
-	return {}
+func customer_action(customer_id: int) -> String:
+	if not session.window_open: return ""
+	var c := session.customer_by_id(customer_id)
+	if c.is_empty() or CoffeeShiftSession._distance(c.position, session.catalog.config.points.counter) >= .12: return ""
+	match c.state:
+		"counter": return "[E] Принять заказ"
+		"payment":
+			if not session.cash.payment.is_empty() and int(session.cash.payment.order) == int(c.order):
+				return "[E] Продолжить оплату"
+		"pickup":
+			var order := session.order_by_id(int(c.order))
+			if new_assets.delivering_order == 0 and not order.is_empty() and order.status == "called" and int(order.customer) == customer_id:
+				return "[E] Выдать заказ"
+	return ""
 
-func show_customer() -> void:
-	var pickup := _pickup_at_counter()
-	if not pickup.is_empty():
-		var order_id := int(pickup.order)
-		var customer_id := int(pickup.id)
-		_panel(CustomerDialogue.speaker_name(pickup), "Покупатель подошёл за заказом №%03d." % order_id, [{"label": "Передать через окно", "call": func() -> void:
-			session.serve_order(order_id, customer_id)
-			hud.close_panel()}], true)
-		return
-	if not session.cash.payment.is_empty():
-		show_cash()
-		return
-	var c := session.counter_customer()
-	if c.is_empty():
-		session.notify("Сейчас у окна никого нет. Готовый заказ можно вызвать справа через Tab")
-		return
-	var captions := PackedStringArray()
-	for item in c.items:
-		captions.append(session.catalog.caption(item))
-	var text: String = session.catalog.config.customers.profiles[int(c.profile)].greeting + ", ".join(captions) + ".\nВсё верно?"
-	var customer_id := int(c.id)
-	_panel(CustomerDialogue.speaker_name(c), text, [{"label": "Повторить состав и подтвердить заказ", "call": func() -> void:
-		if session.confirm_order(customer_id): show_cash()
-		else: hud.close_panel()}], true)
+func show_customer(customer_id: int) -> void:
+	if customer_action(customer_id) == "": return
+	var c := session.customer_by_id(customer_id)
+	match c.state:
+		"pickup":
+			var order_id := int(c.order)
+			_panel(CustomerDialogue.speaker_name(c), "Покупатель подошёл за заказом №%03d." % order_id, [{"label": "Передать через окно", "call": func() -> void:
+				if customer_action(customer_id) == "":
+					hud.close_panel()
+					return
+				var order := session.order_by_id(order_id)
+				var first_cup := drinks_root.get_node_or_null("Cup_%d_0" % order_id) as Node3D
+				var start := first_cup.global_position if first_cup != null else trailer.to_global(Vector3(.78, 1.31, 0))
+				new_assets.play_handover(order_id, customer_id, order.items.size(), start)
+				_refresh()
+				hud.close_panel()}], true)
+		"payment": show_cash()
+		"counter":
+			var greeting: String = str(session.catalog.config.customers.profiles[int(c.profile)].greeting)
+			var line := CustomerDialogue.order_request(greeting, c.items, session.catalog)
+			_panel(CustomerDialogue.speaker_name(c), line, [{"label": "Подтвердить заказ", "call": func() -> void:
+				if session.confirm_order(customer_id, true): show_cash()
+				else: hud.close_panel()}], true)
 
 func show_cash() -> void:
 	_cash_panel_opened = true
@@ -646,36 +803,37 @@ func show_cash() -> void:
 		_panel("КАССА", "Разменная касса: %d ₽. Оплаченных активных заказов: %d / 3.\nДля расчёта сначала подтвердите заказ покупателя." % [session.cash.balance(), session.paid_orders().size()])
 		return
 	var p: Dictionary = session.cash.payment
-	var body := "Заказ №%03d\nК оплате: %d ₽\nПокупатель передал: %d ₽\nСдача: %d ₽\nВ лотке сдачи: %d ₽\n\n%s" % [int(p.order), int(p.total), int(p.tender), int(p.tender) - int(p.total), session.cash.selected_total(), session.last_message]
-	var actions: Array = []
+	var body := "Заказ №%03d\nК оплате: %d ₽" % [int(p.order), int(p.total)]
+	var actions: Array = [{"label": "Принять оплату", "call": func() -> void:
+		if session.finalize_payment(true): hud.close_panel()}]
 	if not p.accepted:
-		actions.append({"label": "Принять купюры", "disabled": not session.cash.can_make_change(), "call": func() -> void: session.accept_cash(); show_cash()})
-		if not session.cash.can_make_change():
-			body += "\nВ ящике не хватает номиналов для точной сдачи."
-			actions.append({"label": "Попросить оплатить без сдачи", "call": func() -> void: session.cash.request_exact(); show_cash()})
-		actions.append({"label": "Отменить до приёма наличных", "call": func() -> void: session.cancel_payment(); hud.close_panel()})
-	else:
-		for denomination in ShiftCashRegister.DENOMINATIONS:
-			var value := int(denomination)
-			var count := int(session.cash.till.get(str(value), 0)) + int(p.notes.get(str(value), 0)) - int(p.selected.get(str(value), 0))
-			actions.append({"label": "Ячейка %d ₽\nОсталось: %d" % [value, count], "grid": true, "disabled": count <= 0, "call": func() -> void: session.select_change(value); show_cash()})
-		actions.append({"label": "Вернуть выбранное в ящик", "call": func() -> void: session.cash.reset_change(); show_cash()})
-		actions.append({"label": "Передать сдачу и завершить расчёт", "call": func() -> void:
-			if session.finalize_payment(): hud.close_panel()
-			else: show_cash()})
-	_panel("НАЛИЧНЫЙ РАСЧЁТ", body, actions)
+		actions.append({"label": "Отменить заказ", "call": func() -> void: session.cancel_payment(); hud.close_panel()})
+	_panel("КАССА", body, actions)
+
+func _orders_needing_carrier() -> Array:
+	if not session.preparation.current.is_empty() or new_assets.is_moving_on_rack(): return []
+	var unpacked: Array = []
+	for order in session.paid_orders():
+		if order.items.size() > 1 and not order.carrier and order.items.any(func(item: Dictionary) -> bool: return item.ready):
+			unpacked.append(int(order.id))
+	return unpacked
 
 func show_carrier() -> void:
+	var unpacked := _orders_needing_carrier()
+	if unpacked.size() == 1:
+		_place_carrier(unpacked[0])
+		return
+	if unpacked.is_empty(): return
 	var actions: Array = []
-	for order in session.paid_orders():
-		if order.items.size() < 2: continue
-		for i in range(order.items.size()):
-			var id := int(order.id)
-			var index := i
-			actions.append({"label": "В держатель: №%03d · стакан %d" % [id, index + 1], "disabled": not order.items[index].ready or index in order.packed, "call": func() -> void:
-				session.pack_cup(id, index)
-				hud.close_panel()})
-	_panel("КАРТОННЫЕ ДЕРЖАТЕЛИ", "По одному поместите готовые стаканы в держатель. Для одного напитка он не нужен.", actions)
+	for id in unpacked:
+		actions.append({"label": "Держатель для №%03d" % id, "call": func() -> void:
+			_place_carrier(id)
+			hud.close_panel()})
+	_panel("КАРТОННЫЕ ДЕРЖАТЕЛИ", "Выберите заказ, для которого нужен держатель.", actions)
+
+func _place_carrier(order_id: int) -> void:
+	if session.place_carrier(order_id):
+		new_assets.move_on_rack(drinks_root.get_node("Carrier_%d" % order_id), held.global_position)
 
 func show_discard() -> void:
 	var actions: Array = []
@@ -707,11 +865,16 @@ func show_report() -> void:
 	if not r.errors.is_empty():
 		errors = ""
 		for cause in r.errors: errors += "\n%s: %d" % [cause, int(r.errors[cause])]
-	var body := "%s · день %d\n\nВыполнено заказов: %d\nПродано напитков: %d\nВыручка: %d ₽\nПолучено наличными: %d ₽\nВозвращено сдачи: %d ₽\nСебестоимость, включая потери: %.2f ₽\n   ингредиенты: %.2f ₽ · упаковка: %.2f ₽\nПотери от переделок: %.2f ₽\nПрибыль: %.2f ₽\nСамый популярный: %s\n\nОшибки: %s" % [r.business_name, int(r.day), int(r.completed), int(r.sold), int(r.revenue), int(r.received), int(r.change), float(r.cost)/100, float(r.ingredient_cost)/100, float(r.packaging_cost)/100, float(r.losses)/100, float(r.profit)/100, r.popular_drink, errors]
+	var body := "%s · день %d\n\nВыполнено заказов: %d\nПродано напитков: %d\nВыручка: %d ₽\nСебестоимость, включая потери: %.2f ₽\n   ингредиенты: %.2f ₽ · упаковка: %.2f ₽\nПотери от переделок: %.2f ₽\nПрибыль: %.2f ₽\nСамый популярный: %s\n\nОшибки: %s" % [r.business_name, int(r.day), int(r.completed), int(r.sold), int(r.revenue), float(r.cost)/100, float(r.ingredient_cost)/100, float(r.packaging_cost)/100, float(r.losses)/100, float(r.profit)/100, r.popular_drink, errors]
 	_panel("ОТЧЁТ СМЕНЫ", body)
 
 func show_help() -> void:
-	var text := "[Tab] — выбрать оплаченную позицию в заказах справа.\n\nПакет кофе → кофемолка → чистый портафильтр → дозировка и темпер → установить в кофемашину → стакан → запустить → вручную остановить через 8–12 секунд.\n\nАмерикано: затем отдельный кран горячей воды.\nКапучино / латте: открыть холодильник за ручку → взять молоко с полки → питчер → паровая трубка → остановить пар → питчер (влить). Холодильник закрывается той же ручкой. Капучино: 4–7 с пара, латте: 2–4 с.\n\nДобавки по заказу → крышка → стойка готовых напитков. Два-три стакана: каждый поставить в держатель. Вызвать номер справа через Tab → дождаться покупателя → E у окна → передать.\n\n[N] справочник. Меню и диалоги приостанавливают таймеры. Ошибку экстракции можно переделать у ведра.\n\nЭспрессо: 9 г / 40 мл. Американо С/Б: 9/18 г, вода 200/300 мл. Капучино С/Б: молоко 160/240 мл. Латте С/Б: молоко 210/290 мл."
+	var text := "[Tab] — выбрать оплаченный напиток.\n\n" + \
+		"Рожок. Возьмите его у кофемашины и установите в держатель кофемолки. Возьмите порцию зёрен, нажмите кнопку помола и заберите рожок. Поставьте его на коврик, возьмите темпер и утрамбуйте кофе. Затем поднимите рожок и установите в группу.\n\n" + \
+		"Экстракция. Возьмите стакан из стопки и поставьте под группу. Запустите экстракцию кнопкой кофемашины и остановите её через 8–12 секунд.\n\n" + \
+		"Дополнения. Для американо переставьте стакан под кран кофемашины и долейте горячую воду. Для молочных напитков возьмите молоко и перелейте в питчер. Ориентир для пара 4–7 секунд у капучино и 2–4 секунды у латте. Влейте молоко из питчера в стакан.\n\n" + \
+		"Упаковка. Возьмите стакан и поставьте на столешницу слева. Добавьте сахар и сироп по заказу. Возьмите крышку, наденьте её, затем снова возьмите стакан и поставьте на стойку. Для нескольких стаканов возьмите держатель из запаса и по одному поместите в него готовые стаканы на стойке.\n\n" + \
+		"Выдача. Нажмите Tab и вызовите номер заказа. Когда покупатель подойдёт, наведите на него прицел и нажмите E."
 	_panel("СПРАВОЧНИК БАРИСТА", text)
 
 func capture_snapshot() -> Dictionary:
@@ -737,11 +900,13 @@ func apply_snapshot(data: Dictionary) -> bool:
 	hud.clear_aside()
 	inspection.cancel()
 	if not session.restore(data.trade): return false
+	session.preparation.restore_placements(session.catalog)
 	music.restore_audio(data.world.get("audio", {}))
 	# Cancel any in-flight animation and restore the authoritative saved window immediately.
 	_shutter_open = session.window_open
 	trailer.shell.set_hatch_open(_shutter_open, false)
 	accessories.reset()
+	new_assets.reset_animations()
 	new_assets.restore(data.world.get("assets",{}))
 	_cash_panel_opened = hud.panel.visible and not session.cash.payment.is_empty()
 	player.position = RestorationCatalog.vector(data.world.position)

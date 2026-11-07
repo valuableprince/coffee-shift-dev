@@ -9,6 +9,8 @@ var right_arm: Node3D
 var previous := Vector3.ZERO
 var phase := 0.0
 var label: Label3D
+var world: Node3D
+var customer_id: int
 
 func build(color: Color, profile: int) -> void:
 	G.box(self, "Jacket", Vector3(0, 1.13, 0), Vector3(.42, .53, .25), color, false)
@@ -42,6 +44,25 @@ func build(color: Color, profile: int) -> void:
 	label = G.sign_text(self, "", Vector3(0, 2.02, 0), Vector3.ZERO, 24)
 	label.pixel_size = .0018
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	var target := StaticBody3D.new()
+	target.collision_layer = 2
+	target.collision_mask = 0
+	add_child(target)
+	for bounds in [AABB(Vector3(-.32, .08, -.17), Vector3(.64, 1.36, .34)),
+		AABB(Vector3(-.14, 1.44, -.15), Vector3(.28, .38, .31))]:
+		var box := BoxShape3D.new()
+		box.size = bounds.size
+		var collision := CollisionShape3D.new()
+		collision.shape = box
+		collision.position = bounds.get_center()
+		target.add_child(collision)
+
+func get_prompt() -> String:
+	return world.customer_action(customer_id)
+
+func interact() -> void:
+	if get_prompt() != "":
+		world.show_customer(customer_id)
 
 func sync(customer: Dictionary, delta: float) -> void:
 	var point := Vector3(float(customer.position[0]), float(customer.position[1]), float(customer.position[2]))

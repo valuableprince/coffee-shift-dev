@@ -102,7 +102,7 @@ func run() -> void:
 	await aim(Vector3(1.9, 1.6, 0))
 	level.hud.set_dialogue_preferences(false, .12)
 	var before := level.session.snapshot()
-	level.show_customer()
+	level.show_customer(int(customer.id))
 	await frames(6)
 	check(speaker() == "Покупатель", "first unknown visit does not expose profile name")
 	check(not level.player.controls_enabled and not level.player.mouse_captured, "full conversation owns input and shows cursor")
@@ -120,20 +120,20 @@ func run() -> void:
 	# is invented here. Extra legacy-compatible metadata is round-tripped.
 	customer.name = "Андрей"
 	customer.name_known = true
-	level.show_customer()
+	level.show_customer(int(customer.id))
 	check(speaker() == "Андрей", "known NPC uses the name supplied by the domain")
 	level.hud.close_panel()
 	var known_save := level.capture_snapshot()
 	check(level.apply_snapshot(known_save), "schema 2 career restores without migration")
 	customer = level.session.customer_by_id(int(customer.id))
-	level.show_customer()
+	level.show_customer(int(customer.id))
 	check(speaker() == "Андрей", "explicitly known name survives snapshot restore")
 	level.hud.close_panel()
 	var old_save := known_save.duplicate(true)
 	old_save.trade.customers[0].erase("name_known")
 	check(level.apply_snapshot(old_save), "old schema 2 save without acquaintance metadata loads")
 	customer = level.session.customers[0]
-	level.show_customer()
+	level.show_customer(int(customer.id))
 	check(speaker() == "Покупатель", "old profile name never implies acquaintance")
 	level.hud.close_panel()
 
@@ -228,17 +228,15 @@ func run() -> void:
 	level.hud.close_panel()
 
 	# Confirm the genuine existing order through the redesigned view.
-	level.show_customer()
+	level.show_customer(int(customer.id))
 	await frames()
 	await key(KEY_ENTER)
 	check(not level.session.cash.payment.is_empty() and not level.hud._dialogue_mode, "dialogue confirmation opens existing cash UI")
 	var order_id := int(level.session.cash.payment.order)
-	check(level.session.accept_cash(), "cash still accepts tender after dialogue")
-	var remaining := int(level.session.cash.payment.tender) - int(level.session.cash.payment.total)
-	for denomination in ShiftCashRegister.DENOMINATIONS:
-		while remaining >= denomination and level.session.cash.select(denomination): remaining -= denomination
-	check(remaining == 0 and level.session.finalize_payment(), "correct change settles existing order")
-	level.hud.close_panel()
+	var payment: Button = level.hud.panel_content.find_children("*", "Button", true, false)[0]
+	check(payment.text == "Принять оплату", "cash offers one-step payment after dialogue")
+	payment.pressed.emit()
+	check(level.session.order_by_id(order_id).paid and not level.hud.panel.visible, "one-step payment settles the order and returns control")
 	check(level.session.select_item(order_id,0), "select paid drink")
 	for action in ["beans","grind","filter","dose","install","cup","extract"]:
 		check(level.session.prepare_action(action), "existing manual preparation: " + action)
@@ -281,12 +279,13 @@ func run() -> void:
 	level.session.tick(10)
 	await aim(Vector3(1.9,1.6,0))
 	level._sync_customers(0)
-	level.show_customer()
+	level.show_customer(int(customer.id))
 	await frames(6)
 	root.size = Vector2i(1920,1080)
 	await frames(6)
 	await shot("07-customer-and-panel-1920x1080")
 	await key(KEY_ENTER)
+	await create_timer(ShiftNewAssets.MOVE_SECONDS + .1).timeout
 	check(level.session.order_by_id(order_id).status == "served" and level.session.stats.completed == 1, "drink handoff succeeds after dialogue")
 	check(not level.hud.panel.visible and level.player.mouse_captured, "handoff returns input without stuck cursor")
 	check(level.session.validate(level.session.snapshot()), "career invariants and schema still valid after full service")

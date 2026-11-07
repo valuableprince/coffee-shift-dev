@@ -184,7 +184,7 @@ func counter_customer() -> Dictionary:
 			return c
 	return {}
 
-func confirm_order(customer_id: int) -> bool:
+func confirm_order(customer_id: int, exact_payment: bool = false) -> bool:
 	var c := counter_customer()
 	if c.is_empty() or int(c.id) != customer_id or not accepting or not shift_open or not window_open:
 		return notify("Покупатель ещё не у окна")
@@ -207,8 +207,9 @@ func confirm_order(customer_id: int) -> bool:
 	c.order = next_order
 	c.state = "payment"
 	cash.begin(next_order, total)
+	if exact_payment: cash.request_exact()
 	next_order += 1
-	return _commit("Заказ подтверждён. Примите наличные в кассе", "paper")
+	return _commit("Заказ подтверждён. Примите оплату", "paper")
 
 func accept_cash() -> bool:
 	if not cash.accept():
@@ -222,17 +223,22 @@ func select_change(denomination: int) -> bool:
 	changed.emit()
 	return true
 
-func finalize_payment() -> bool:
-	if cash.payment.is_empty() or not cash.correct():
+func finalize_payment(exact_payment: bool = false) -> bool:
+	if cash.payment.is_empty():
+		return notify("Нет заказа к оплате")
+	if not exact_payment and not cash.correct():
 		return notify("Сдача неверна. Сверьте сумму и номиналы")
 	var order := order_by_id(int(cash.payment.order))
 	if order.is_empty() or order.paid or paid_orders().size() >= 3:
 		return notify("Оплата этого заказа недоступна")
+	if exact_payment and not cash.accept_exact():
+		return false
 	var receipt := cash.payment.duplicate(true)
 	if not cash.commit():
 		return false
 	order.paid = true
 	order.status = "paid"
+	_assign_rack_slot(order)
 	order.payment = receipt
 	stats.revenue = int(stats.revenue) + int(order.total)
 	stats.received = int(stats.received) + int(receipt.tender)
@@ -264,14 +270,32 @@ func select_item(order_id: int, index: int) -> bool:
 	selected_item = index
 	return _commit("Выбран заказ №%03d: %s" % [order_id, catalog.caption(order.items[index])], "paper")
 
-func begin_drink() -> bool:
+func can_begin_drink() -> bool:
+	var order := order_by_id(selected_order)
+	return not order.is_empty() and order.paid and order.status == "paid" and selected_item < order.items.size() and not order.items[selected_item].ready and preparation.current.is_empty()
+
+func _assign_rack_slot(order: Dictionary) -> void:
+	var free_slots := [0, 1, 2]
+	for other in paid_orders():
+		if other.has("rack_slot"): free_slots.erase(int(other.rack_slot))
+	if not free_slots.is_empty(): order.rack_slot = free_slots[0]
+
+func begin_drink(physical: bool = false) -> bool:
 	var order := order_by_id(selected_order)
 	if order.is_empty() or not order.paid or order.status not in ["paid", "ready"] or selected_item >= order.items.size():
 		return notify("Выберите оплаченную позицию в заказах справа [Tab]")
 	var item: Dictionary = order.items[selected_item]
 	if item.ready or not preparation.begin(selected_order, selected_item, item):
 		return notify("Эта позиция готова или рабочее место занято")
+	if physical:
+		preparation.current.portafilter = "in_hand"
+		return _commit("Рожок в руке. Установите его в кофемолку", "cup")
 	return _commit("Возьмите кофе для выбранного напитка")
+
+func move_preparation_prop(field: String, value: Variant, message: String) -> void:
+	if preparation.current.is_empty(): return
+	preparation.current[field] = value
+	_commit(message, "cup")
 
 func _record_cost(resources: Dictionary) -> void:
 	for key in resources:
@@ -301,7 +325,8 @@ func prepare_action(action: String) -> bool:
 			all_ready = all_ready and position.ready
 		order.status = "ready" if all_ready else "paid"
 		preparation.current = {}
-		return _commit(str(work.quality.hint) + ". Стакан на стойке", "cup")
+		var message := "Заказ №%03d готов" % int(order.id) if all_ready else "Стакан на стойке. Выберите следующую позицию"
+		return _commit(message + ". " + str(work.quality.hint), "cup")
 	var sound: String = {"grind": "grinder", "extract": "extraction", "steam": "steam", "cup": "cup"}.get(action, "machine")
 	return _commit("Следующий шаг: " + str(ShiftRecipeCatalog.STEP_LABELS.get(preparation.next_step(catalog), "готово")), sound)
 
@@ -334,13 +359,24 @@ func pack_cup(order_id: int, index: int) -> bool:
 	var order := order_by_id(order_id)
 	if order.is_empty() or not order.paid or order.status == "served" or order.items.size() < 2 or index < 0 or index >= order.items.size() or not order.items[index].ready or index in order.packed:
 		return notify("Поставьте каждый готовый стакан в держатель")
-	if not order.carrier:
-		if not inventory.consume("carriers", 1):
-			return notify("Нет картонного держателя")
-		order.carrier = true
-		_record_cost({"carriers": 1})
+	if not _place_carrier(order):
+		return notify("Нет картонного держателя")
 	order.packed.append(index)
 	return _commit("Стакан установлен в держатель", "cup")
+
+func place_carrier(order_id: int) -> bool:
+	var order := order_by_id(order_id)
+	if order.is_empty() or not order.paid or order.status not in ["paid", "ready"] or order.items.size() < 2 or order.carrier:
+		return false
+	if not _place_carrier(order): return notify("Нет картонного держателя")
+	return _commit("Держатель на стойке. Поставьте в него готовые стаканы", "cup")
+
+func _place_carrier(order: Dictionary) -> bool:
+	if order.carrier: return true
+	if not inventory.consume("carriers", 1): return false
+	order.carrier = true
+	_record_cost({"carriers": 1})
+	return true
 
 func call_order(order_id: int) -> bool:
 	var order := order_by_id(order_id)
@@ -364,7 +400,7 @@ func serve_order(order_id: int, customer_id: int) -> bool:
 		return notify("Заказ ещё не вызван или уже выдан")
 	if int(order.customer) != customer_id:
 		return notify("Это не мой номер заказа")
-	if c.state != "pickup" or _distance(c.position, catalog.config.points.counter) > .15:
+	if not window_open or c.state != "pickup" or _distance(c.position, catalog.config.points.counter) > .15:
 		return notify("Дождитесь, пока покупатель подойдёт к окну")
 	order.status = "served"
 	c.state = "leaving"
@@ -391,7 +427,8 @@ func tick(delta: float) -> void:
 	if clock >= 86400:
 		day += int(clock / 86400)
 		clock = fmod(clock, 86400)
-	preparation.tick(delta)
+	if preparation.tick(delta):
+		_commit("Помол завершён. Заберите рожок из кофемолки", "ui")
 	if shift_open and accepting:
 		spawn_elapsed += delta
 		if spawn_elapsed >= float(catalog.config.customers.interval_seconds):
@@ -501,6 +538,7 @@ func validate(data: Dictionary) -> bool:
 			if not item is Dictionary or not catalog.valid_item(item):
 				return false
 	var paid := 0
+	var rack_slots: Array = []
 	var expected_reserved := {}
 	for o in data.orders:
 		if not o is Dictionary or not whole(o.get("id")) or int(o.id) in ids or not whole(o.get("customer")) or not o.get("paid") is bool or not o.get("carrier") is bool or not o.get("packed") is Array or not o.get("payment") is Dictionary:
@@ -514,6 +552,9 @@ func validate(data: Dictionary) -> bool:
 			return false
 		if o.paid and o.status != "served":
 			paid += 1
+			if o.has("rack_slot"):
+				if not whole(o.rack_slot, 2) or int(o.rack_slot) in rack_slots: return false
+				rack_slots.append(int(o.rack_slot))
 		var total := 0
 		for i in range(o.items.size()):
 			var item = o.items[i]
@@ -579,7 +620,7 @@ func _valid_work(w: Dictionary, order: Dictionary, index: int, finished: bool) -
 	if w.get("order") != order.id or w.get("index") != index or not w.get("item") is Dictionary or not catalog.valid_item(w.item) or w.get("recipe") != order.items[index].recipe:
 		return false
 	if w.item.recipe != w.recipe or w.item.sugar != order.items[index].sugar or w.item.syrup != order.items[index].syrup: return false
-	if not whole(w.get("step"), catalog.steps(w.item).size()) or not w.get("consumed") is Dictionary or not whole(w.get("cost")) or w.get("running") not in ["", "extract", "steam"]:
+	if not whole(w.get("step"), catalog.steps(w.item).size()) or not w.get("consumed") is Dictionary or not whole(w.get("cost")) or w.get("running") not in ["", "grind", "extract", "steam"]:
 		return false
 	for key in ["elapsed", "extraction_seconds", "steam_seconds"]:
 		if (not w.get(key) is float and not w.get(key) is int) or not is_finite(float(w[key])) or w[key] < 0 or w[key] > 90:
@@ -589,6 +630,37 @@ func _valid_work(w: Dictionary, order: Dictionary, index: int, finished: bool) -
 			return false
 	var expected := {}
 	var sequence := catalog.steps(w.item)
+	# Optional on old saves: interstitial physical cup/lid handling does not
+	# advance a recipe index or consume a second copy of any ingredient.
+	var handling_value: Variant = w.get("handling", "")
+	if not handling_value is String: return false
+	var handling: String = handling_value
+	if handling not in ["", "cup_held", "cup_in_machine", "cup_ready_on_machine",
+		"water_held", "cup_at_water_tap", "cup_ready_at_water_tap",
+		"cup_full_held", "cup_on_counter", "lid_held", "lid_attached", "capped_held"]: return false
+	var upcoming := str(sequence[int(w.step)]) if int(w.step) < sequence.size() else ""
+	var portafilter: Variant = w.get("portafilter", "")
+	if not portafilter is String or not w.get("tamper_held", false) is bool: return false
+	if portafilter != "":
+		if finished or not _valid_portafilter(portafilter, upcoming): return false
+		if int(w.step) > sequence.find("cup") and handling == "": return false
+	if w.get("tamper_held", false) and (upcoming != "dose" or portafilter != "on_tamping_mat"): return false
+	match handling:
+		"cup_held":
+			if upcoming != "cup": return false
+		"cup_in_machine":
+			if int(w.step) <= sequence.find("cup") or upcoming == "place": return false
+			if portafilter != "" and upcoming in ["sugar", "syrup", "lid"]: return false
+		"water_held", "cup_at_water_tap":
+			if upcoming != "water": return false
+		"cup_ready_at_water_tap":
+			if catalog.recipes[w.recipe].drink != "americano" or upcoming not in ["sugar", "syrup", "lid"]: return false
+		"cup_ready_on_machine", "cup_full_held", "cup_on_counter":
+			if upcoming not in ["sugar", "syrup", "lid"]: return false
+		"lid_held":
+			if upcoming != "lid": return false
+		"lid_attached", "capped_held":
+			if upcoming != "place": return false
 	var probe := ShiftCoffeePreparation.new()
 	probe.current = {"recipe": w.recipe, "consumed": expected}
 	for step_index in range(int(w.step)):
@@ -603,10 +675,19 @@ func _valid_work(w: Dictionary, order: Dictionary, index: int, finished: bool) -
 	if not finished and int(w.step) >= sequence.size(): return false
 	var expected_running := ""
 	if int(w.step) > 0 and str(sequence[int(w.step) - 1]) in ["extract", "steam"]: expected_running = str(sequence[int(w.step) - 1])
+	if w.running == "grind" and upcoming == "filter" and portafilter == "in_grinder" and float(w.elapsed) < ShiftCoffeePreparation.GRIND_SECONDS:
+		expected_running = "grind"
 	if w.running != expected_running: return false
 	if finished and (not w.get("quality") is Dictionary or not w.quality.get("good") is bool or not w.quality.get("errors") is Array):
 		return false
 	return true
+
+func _valid_portafilter(placement: String, upcoming: String) -> bool:
+	match upcoming:
+		"beans", "grind": return placement in ["at_machine_storage", "in_hand", "in_grinder"]
+		"filter": return placement == "in_grinder"
+		"dose", "install": return placement in ["in_hand", "on_tamping_mat"]
+	return placement == "installed"
 
 func _valid_payment(p: Dictionary, saved_orders: Array, till: Dictionary) -> bool:
 	var unpaid: Array = saved_orders.filter(func(o: Dictionary) -> bool: return not o.paid)
@@ -642,6 +723,8 @@ func restore(data: Dictionary) -> bool:
 		order.id = int(order.id)
 		order.customer = int(order.customer)
 		order.packed = order.packed.map(func(value) -> int: return int(value))
+		if order.paid and order.status != "served" and not order.has("rack_slot"):
+			_assign_rack_slot(order)
 	for customer in customers:
 		customer.id = int(customer.id)
 		customer.order = int(customer.order)

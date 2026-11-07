@@ -21,6 +21,7 @@ var _power: StandardMaterial3D
 var _brew: Array[StandardMaterial3D] = []
 var portafilter: Node3D
 var _wand_tip := Vector3(.354, .086, .342)
+var _water_tip := Vector3(-.329, .147, .308)
 
 func fit_accessories(scene: PackedScene) -> void:
 	portafilter = scene.instantiate()
@@ -38,9 +39,22 @@ func fit_accessories(scene: PackedScene) -> void:
 	for mesh in $Model.find_children("SteamWand_*", "MeshInstance3D", true, false):
 		if mesh.name != "SteamWand_Pivot": mesh.transform = Transform3D(swing, pivot - swing * pivot)
 	_wand_tip = pivot + swing * (_wand_tip - pivot)
+	# Swivel the original tap over the grille with clearance for the cup.
+	var tap_pivot := Vector3(-.313, .269, .256)
+	var tap_swing := Basis(Vector3.RIGHT, deg_to_rad(-70))
+	var tap_mount := tap_pivot + Vector3(.041, 0, -.046)
+	for mesh in $Model.find_children("HotWaterTap_*", "MeshInstance3D", true, false):
+		mesh.transform = Transform3D(tap_swing, tap_mount - tap_swing * tap_pivot)
+	_water_tip = tap_mount + tap_swing * (_water_tip - tap_pivot)
 
 func steam_tip() -> Vector3:
 	return to_global(_wand_tip)
+
+func water_tip() -> Vector3:
+	return to_global(_water_tip)
+
+func water_cup_base() -> Vector3:
+	return to_global(Vector3(_water_tip.x, .099, _water_tip.z))
 
 func _ready() -> void:
 	for mesh in $Model.find_children("*", "MeshInstance3D", true, false):
@@ -78,7 +92,7 @@ func sync(powered: bool, preparation: Dictionary) -> void:
 	if portafilter != null: portafilter.visible = installed
 
 func cup_base() -> Vector3:
-	return to_global(Vector3(-.165, .102, .316))
+	return to_global(Vector3(-.165, .099, .316))
 
 func spout() -> Vector3:
 	if portafilter != null:

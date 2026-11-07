@@ -36,10 +36,10 @@ for scene in scenes/first_shift.tscn scenes/main.tscn; do
   name="$(basename "$scene" .tscn)"
   "${DISPLAY_RUN[@]}" "$ENGINE" --audio-driver Dummy --path . --rendering-method gl_compatibility --quit-after 90 "$scene" -- --test-mode 2>&1 | tee "$OUT/$name.log"
 done
-for test in radio01_integration new_assets_integration; do
+for test in radio01_integration new_assets_integration dev03_integration; do
   "${DISPLAY_RUN[@]}" "$ENGINE" --verbose --audio-driver Dummy --path . --rendering-method gl_compatibility --script "tests/$test.gd" -- --test-mode 2>&1 | tee "$OUT/$test.log"
 done
-if grep -Ein 'SCRIPT ERROR|Parse Error|ERROR:|FAIL AUDIO-01:|FAIL:' "$OUT"/import.log "$OUT"/smoke.log "$OUT"/first_shift.log "$OUT"/main.log "$OUT"/radio01_integration.log "$OUT"/new_assets_integration.log; then
+if grep -Ein 'SCRIPT ERROR|Parse Error|ERROR:|FAIL AUDIO-01:|FAIL:' "$OUT"/import.log "$OUT"/smoke.log "$OUT"/first_shift.log "$OUT"/main.log "$OUT"/radio01_integration.log "$OUT"/new_assets_integration.log "$OUT"/dev03_integration.log; then
   echo "Godot reported errors. See AUDIO01_LOG_DIR for evidence." >&2
   exit 1
 fi

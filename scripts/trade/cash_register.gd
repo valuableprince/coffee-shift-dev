@@ -55,6 +55,15 @@ func request_exact() -> bool:
 	payment.notes = notes
 	return true
 
+func accept_exact() -> bool:
+	if payment.is_empty(): return false
+	# Previously accepted notes live in escrow until commit. Normalize an old
+	# pending payment before posting the exact net amount to the till.
+	payment.accepted = false
+	payment.selected = {}
+	request_exact()
+	return accept()
+
 func selected_total() -> int:
 	var total := 0
 	for key in payment.get("selected", {}):

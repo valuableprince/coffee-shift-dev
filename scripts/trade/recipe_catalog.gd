@@ -2,7 +2,7 @@ class_name ShiftRecipeCatalog
 extends RefCounted
 ## Prototype balance belongs to data, independently from machines and UI.
 const STOCK_LABELS := {"coffee":"Кофе, г", "milk":"Молоко, мл", "water":"Вода, мл", "sugar":"Сахар, порций", "syrup":"Сироп, мл", "cups_small":"Стаканы 40 мл", "cups_standard":"Стаканы С", "cups_large":"Стаканы Б", "lids_small":"Крышки 40 мл", "lids_standard":"Крышки С", "lids_large":"Крышки Б", "carriers":"Держатели"}
-const STEP_LABELS := {"beans":"взять кофе", "grind":"смолоть кофе", "filter":"взять чистый портафильтр", "dose":"дозировать и утрамбовать кофе", "install":"установить портафильтр", "cup":"поставить стакан", "extract":"запустить экстракцию", "stop":"остановить экстракцию", "water":"добавить горячую воду", "milk":"взять молоко", "pitcher":"подготовить питчер", "steam":"включить пар", "stop_steam":"остановить пар", "pour":"добавить молоко", "sugar":"добавить сахар", "syrup":"добавить ваниль", "lid":"закрыть крышкой", "place":"поставить на выдачу"}
+const STEP_LABELS := {"beans":"взять кофе", "grind":"смолоть кофе", "filter":"взять чистый рожок", "dose":"дозировать и утрамбовать кофе", "install":"установить рожок", "cup":"установить стакан под кофемашину", "extract":"запустить экстракцию", "stop":"остановить экстракцию", "water":"добавить горячую воду", "milk":"взять молоко", "pitcher":"подготовить питчер", "steam":"включить пар", "stop_steam":"остановить пар", "pour":"добавить молоко", "sugar":"добавить сахар", "syrup":"добавить ваниль", "lid":"надеть крышку на стакан", "place":"поставить стакан на выдачу"}
 
 var config: Dictionary
 var recipes: Dictionary
