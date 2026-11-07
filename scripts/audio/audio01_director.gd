@@ -27,6 +27,15 @@ const ACHIEVEMENT := "res://assets/audio/music/achievement_sting.wav"
 const FADE_TIME := 1.5
 const BASE_DB := -6.0
 const SILENT_DB := -70.0
+# RADIO-02: tune spatial sound for the entire 5.5 x 2.4 m trailer.
+# The speaker remains a single positional emitter. These are metre-scale
+# acoustic settings, not a second non-spatial background music channel.
+const RADIO_UNIT_SIZE := 3.5
+const RADIO_MAX_DISTANCE := 12.0
+const RADIO_BASE_DB := -6.0
+const RADIO_MAX_DB := -4.0
+const RADIO_FILTER_CUTOFF_HZ := 10000.0
+const RADIO_FILTER_DB := -10.0
 
 var radio_on := false
 var first_shift_sting_played := false
@@ -108,9 +117,14 @@ func attach_radio(parent: Node3D, local_position: Vector3, speaker: AudioStreamP
 		parent.add_child(_radio)
 	_radio.bus = "Radio"
 	_radio.process_mode = Node.PROCESS_MODE_ALWAYS
-	_radio.unit_size = 1.5
-	_radio.max_distance = 8.0
+	_radio.unit_size = RADIO_UNIT_SIZE
+	_radio.max_distance = RADIO_MAX_DISTANCE
 	_radio.attenuation_model = AudioStreamPlayer3D.ATTENUATION_INVERSE_DISTANCE
+	_radio.max_db = RADIO_MAX_DB
+	# Default low-pass muffles the distant radio before the player even reaches
+	# the espresso machine. Keep a gentle distant roll-off, not a blanket cut.
+	_radio.attenuation_filter_cutoff_hz = RADIO_FILTER_CUTOFF_HZ
+	_radio.attenuation_filter_db = RADIO_FILTER_DB
 	_radio.finished.connect(_advance_radio)
 	_apply_radio_power()
 	if _context == "trade":
@@ -233,7 +247,7 @@ func _apply_radio_power() -> void:
 	if bus_index >= 0:
 		AudioServer.set_bus_mute(bus_index, not (radio_on and _context == "trade"))
 	if _radio != null:
-		_radio.volume_db = -8.0
+		_radio.volume_db = RADIO_BASE_DB
 	radio_power_changed.emit(radio_on)
 
 func play_opening_once() -> bool:
